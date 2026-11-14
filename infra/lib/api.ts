@@ -8,7 +8,7 @@ import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import type { Auth } from './auth';
 import type { Data } from './data';
-import { READ, WRITE, apiFn, grantTable, type Stage } from './fn';
+import { READ, WRITE, apiFn, devOrigins, grantTable, type Stage } from './fn';
 
 /** Every partition-key family the main API touches (see services/api/src/data/keys.ts). */
 const API_KEYS = [
@@ -87,7 +87,7 @@ export class Api extends Construct {
     this.httpApi = new HttpApi(this, 'Http', {
       apiName: `freeroom-${stage}`,
       corsPreflight: {
-        allowOrigins: [props.webOrigin, 'http://localhost:5173'],
+        allowOrigins: [props.webOrigin, ...devOrigins(stage)],
         allowMethods: [
           CorsHttpMethod.GET,
           CorsHttpMethod.POST,

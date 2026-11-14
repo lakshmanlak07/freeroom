@@ -12,7 +12,7 @@ import {
 } from 'aws-cdk-lib/aws-cognito';
 import type { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
-import { apiFn, grantTable, type Stage } from './fn';
+import { apiFn, devOrigins, grantTable, type Stage } from './fn';
 
 /** Cognito email/password (+ optional campus SAML) with the pre-token role/registered claims. */
 export class Auth extends Construct {
@@ -88,8 +88,8 @@ export class Auth extends Construct {
             oAuth: {
               flows: { authorizationCodeGrant: true },
               scopes: [OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE],
-              callbackUrls: [`${props.webUrl}/`, 'http://localhost:5173/'],
-              logoutUrls: [`${props.webUrl}/`, 'http://localhost:5173/'],
+              callbackUrls: [`${props.webUrl}/`, ...devOrigins(props.stage, '/')],
+              logoutUrls: [`${props.webUrl}/`, ...devOrigins(props.stage, '/')],
             },
           }
         : { disableOAuth: true }),

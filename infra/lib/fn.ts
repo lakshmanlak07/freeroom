@@ -11,6 +11,10 @@ import { fileURLToPath } from 'node:url';
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export type Stage = 'dev' | 'prod';
 
+/** Local Vite dev server origins — trusted ONLY in the dev stage (never prod CORS/OAuth/map key). */
+export const devOrigins = (stage: Stage, suffix = '') =>
+  stage === 'dev' ? [`http://localhost:5173${suffix}`] : [];
+
 export interface FnProps {
   stage: Stage;
   /** File under services/api/src exporting `handler`. */

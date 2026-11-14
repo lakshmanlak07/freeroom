@@ -129,6 +129,13 @@ describe('Api', () => {
         AllowOrigins: Match.arrayWith(['http://localhost:5173']),
       }),
     });
+    // prod must never trust a localhost origin (CORS, OAuth redirects, map key referers)
+    expect(JSON.stringify(prod.toJSON())).not.toContain('localhost');
+    prod.hasResourceProperties('AWS::ApiGatewayV2::Api', {
+      CorsConfiguration: Match.objectLike({
+        AllowOrigins: Match.not(Match.arrayWith(['http://localhost:5173'])),
+      }),
+    });
   });
 
   it('all functions run Node 20 on ARM64', () => {

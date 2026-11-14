@@ -21,7 +21,7 @@ import {
 import { Construct } from 'constructs';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, type Stage } from './fn';
+import { ROOT, devOrigins, type Stage } from './fn';
 
 const WEB_DIST = join(ROOT, 'apps/web/dist');
 
@@ -117,7 +117,7 @@ export class Web extends Construct {
       restrictions: {
         allowActions: ['geo:GetMap*'],
         allowResources: [map.attrArn],
-        allowReferers: [`${this.url}/*`, 'http://localhost:5173/*'],
+        allowReferers: [`${this.url}/*`, ...devOrigins(props.stage, '/*')],
       },
     });
     const keyValue = new AwsCustomResource(this, 'MapKeyValue', {
