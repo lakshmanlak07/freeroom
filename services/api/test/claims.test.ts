@@ -89,6 +89,9 @@ describe('BR-6: no acceptance at or after cutoff', () => {
     try {
       at('2026-11-17T15:59:59.999Z');
       expect((await decide('faculty1', c1, 'approve', { mode: 'SHARE_CONTACT' })).status).toBe(403);
+      // Admins may deny but never approve (approval reveals the owner's contact — BR-5).
+      expect((await decide('admin1', c1, 'approve', { mode: 'SHARE_CONTACT' })).status).toBe(403);
+      expect((await decide('student2', c1, 'approve', { mode: 'SHARE_CONTACT' })).status).toBe(403);
       const ok = await decide('student1', c1, 'approve', { mode: 'SHARE_CONTACT' });
       expect(ok.body).toMatchObject({ status: 'APPROVED', mode: 'SHARE_CONTACT' });
       expect((await decide('student1', c1, 'deny')).status).toBe(409);

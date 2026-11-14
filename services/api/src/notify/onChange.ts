@@ -157,7 +157,8 @@ export async function onChange(deps: OnChangeDeps, records: ChangeRecord[]): Pro
         const email = enc && (await deps.contacts.decrypt(draft.userId, enc)).email;
         if (email) await deps.sendEmail(email, `FreeRoom: ${draft.title}`, draft.body);
       } catch (e) {
-        deps.log.warn('notify.email_failed', { type: draft.type, error: e }); // in-app copy already stored
+        // Error name only: provider messages can echo the recipient address.
+        deps.log.warn('notify.email_failed', { type: draft.type, errorName: (e as Error).name }); // in-app copy already stored
       }
     }
   }

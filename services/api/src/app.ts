@@ -49,7 +49,10 @@ export interface Ctx extends AppDeps {
   refreshTimeoutMs: number;
 }
 
-/** `user` is set for registered users; only /register and GET /me run without it. */
+/**
+ * `user` is set for registered users. It is absent only on /register, GET /me and anonymous
+ * public room reads — those handlers check for it explicitly.
+ */
 export type Env = {
   Variables: { correlationId: string; log: Logger; sub: string; user: UserProfile };
 };
@@ -64,6 +67,10 @@ const errorBody = (
 
 const CORRELATION_ID = /^[\w-]{1,64}$/;
 const PUBLIC = (path: string) => path === '/health' || path.startsWith('/mock25live/');
+/** Room browsing works signed-out (no JWT authorizer on these routes); a token, if sent, is verified. */
+const PUBLIC_READ = (method: string, path: string) =>
+  method === 'GET' &&
+  (path === '/buildings' || path === '/rooms' || /^\/rooms\/[^/]+(\/schedule)?$/.test(path));
 const ALLOWED_UNREGISTERED = (method: string, path: string) =>
   (method === 'POST' && path === '/register') || (method === 'GET' && path === '/me');
 
@@ -112,12 +119,19 @@ export function createApp(deps: AppDeps) {
         );
       }
     }
-    if (!sub) throw new AppError('UNAUTHORIZED', 'Sign in required');
+    if (!sub) {
+      const credentialsSent = !!c.req.header('authorization') || !!devUser;
+      if (!credentialsSent && PUBLIC_READ(c.req.method, c.req.path)) return next(); // anonymous
+      throw new AppError('UNAUTHORIZED', 'Sign in required');
+    }
     const user = await getUser(ctx.db, sub);
     if (user?.status === 'SUSPENDED') throw new AppError('FORBIDDEN', 'Account suspended');
     c.set('sub', sub);
     if (user) c.set('user', user);
-    else if (!ALLOWED_UNREGISTERED(c.req.method, c.req.path)) {
+    else if (
+      !ALLOWED_UNREGISTERED(c.req.method, c.req.path) &&
+      !PUBLIC_READ(c.req.method, c.req.path)
+    ) {
       throw new AppError('FORBIDDEN', 'Complete registration first');
     }
     return next();

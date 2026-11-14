@@ -37,7 +37,7 @@ describe('api app', () => {
   });
 
   it('requires auth everywhere else, ignoring x-dev-user unless devAuth', async () => {
-    const res = await app.request('/rooms', { headers: { 'x-dev-user': 'admin1' } });
+    const res = await app.request('/me/reservations', { headers: { 'x-dev-user': 'admin1' } });
     const body = await res.json();
     assertNoPII(body);
     expect(res.status).toBe(401);

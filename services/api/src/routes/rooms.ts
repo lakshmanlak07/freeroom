@@ -143,7 +143,7 @@ export function roomRoutes(ctx: Ctx) {
       ctx.db,
       active.map((x) => x.ownerId),
     );
-    const viewer = c.get('user').userId;
+    const viewer = (c.get('user') as Env['Variables']['user'] | undefined)?.userId ?? ''; // '' = anonymous
     const synced = dayData.map((d) => d.lastSyncedAt);
     const body: ScheduleResponse = {
       items: [

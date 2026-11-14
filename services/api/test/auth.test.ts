@@ -1,6 +1,7 @@
 import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { assertNoPII } from '@freeroom/domain';
 import { createApp } from '../src/app';
 import { cognitoVerifier, hashUniversityId } from '../src/auth';
 import { addClaims } from '../src/preToken';
@@ -61,11 +62,13 @@ const asBearer = (user: string, method: string, path: string, body?: unknown, al
 
 describe('auth middleware', () => {
   it('401 without/with a bad token; 403 for unregistered users outside /register', async () => {
-    expect((await t.app.request('/rooms')).status).toBe(401);
+    expect((await t.app.request('/me/reservations')).status).toBe(401);
     expect(
-      (await t.app.request('/rooms', { headers: { authorization: 'Bearer nope' } })).status,
+      (await t.app.request('/me/reservations', { headers: { authorization: 'Bearer nope' } }))
+        .status,
     ).toBe(401);
-    expect((await asBearer('ghost', 'GET', '/rooms')).body.error.code).toBe('FORBIDDEN');
+    expect((await asBearer('ghost', 'GET', '/me/reservations')).body.error.code).toBe('FORBIDDEN');
+    expect((await asBearer('ghost', 'GET', '/rooms')).status).toBe(200); // browsing needs no registration
     expect((await asBearer('ghost', 'GET', '/me')).status).toBe(404);
   });
 });
@@ -181,5 +184,30 @@ describe('/me (privileged) and roles', () => {
     expect((await priv.request('/me', h)).status).toBe(200);
     expect((await priv.request('/rooms', h)).status).toBe(404);
     expect((await main.request('/rooms', h)).status).toBe(200);
+  });
+});
+
+describe('public room reads (no JWT authorizer)', () => {
+  const get = async (path: string, headers: Record<string, string> = {}) => {
+    const res = await t.app.request(path, { headers });
+    const body = (await res.json()) as { rooms: unknown[] };
+    assertNoPII(body);
+    return { status: res.status, body };
+  };
+
+  it('allows anonymous GET of buildings, rooms, room detail and schedule', async () => {
+    expect((await get('/buildings')).status).toBe(200);
+    expect((await get('/rooms')).body.rooms.length).toBe(80);
+    expect((await get('/rooms/LGRT-0101')).status).toBe(200);
+    const s = await get(
+      '/rooms/LGRT-0101/schedule?from=2026-11-17T05:00:00Z&to=2026-11-18T05:00:00Z',
+    );
+    expect(s.status).toBe(200);
+  });
+
+  it('still requires auth for everything else, and rejects a bad token even on public reads', async () => {
+    expect((await t.app.request('/reservations', { method: 'POST' })).status).toBe(401);
+    expect((await get('/me/reservations')).status).toBe(401);
+    expect((await get('/buildings', { authorization: 'Bearer forged' })).status).toBe(401);
   });
 });

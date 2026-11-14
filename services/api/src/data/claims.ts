@@ -269,8 +269,10 @@ export async function approveClaim(
   const nowIso = now.toISOString();
   for (let attempt = 0; attempt < 6; attempt++) {
     const { claim, res } = await loadPair(db, input.claimId);
-    if (!can(actor, 'claim:decide', { ownerId: res.ownerId })) {
-      throw new AppError('FORBIDDEN', 'Only the reservation owner can decide claims');
+    // BR-5: approval shares the owner's contact or gives away their reservation, so only the
+    // owner can approve — not even admins (they may deny). Requesters can never self-approve.
+    if (actor.userId !== res.ownerId || actor.userId === claim.requesterId) {
+      throw new AppError('FORBIDDEN', 'Only the reservation owner can approve claims');
     }
     const pre = canApproveClaim(claim, { ...res, start: new Date(res.start) }, now);
     if (!pre.ok) throw new AppError(pre.code, pre.code);
