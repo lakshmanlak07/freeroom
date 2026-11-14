@@ -12,6 +12,7 @@ import { clearBusyCache } from '../availability';
 import type { Item } from '../data/db';
 import { keys } from '../data/keys';
 import { getReservation } from '../data/reservations';
+import { getDemoIds, seedDemo } from '../demoSeed';
 import { AppError, parse } from '../errors';
 import { sweep } from '../sweeper';
 import { injectClass, loadInjected, syncSchedule } from '../sync/syncSchedule';
@@ -111,7 +112,7 @@ export function demoRoutes(ctx: Ctx) {
     return c.json({ ...result, status: after?.status, releaseReason: after?.releaseReason });
   });
 
-  /** Wipe reservations/claims/notifications/injected classes, then resync the schedule. */
+  /** Wipe reservations/claims/notifications/injected classes, resync, then re-seed the demo. */
   r.post('/demo/reset', async (c) => {
     adminOnly(c);
     const doomed: Item[] = [];
@@ -156,8 +157,9 @@ export function demoRoutes(ctx: Ctx) {
       now: ctx.now(),
       log: c.get('log'),
     });
+    const seeded = await seedDemo(ctx.db, await getDemoIds(ctx.db), ctx.now());
     clearBusyCache();
-    return c.json({ deleted: doomed.length, sync });
+    return c.json({ deleted: doomed.length, sync, seeded });
   });
   return r;
 }

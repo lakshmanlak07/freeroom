@@ -17,6 +17,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { AwsKmsKeyProvider, ContactService } from '../../services/api/src/contact';
 import { makeDb } from '../../services/api/src/data/db';
 import { DEMO_USERS, putPrivate, putUser } from '../../services/api/src/data/users';
+import { type DemoIds, seedDemoOnce } from '../../services/api/src/demoSeed';
 
 const i = process.argv.indexOf('--stage');
 const stage = i >= 0 ? process.argv[i + 1] : undefined;
@@ -49,6 +50,7 @@ if (o.DemoMode === 'true') {
   // Satisfies the pool policy: upper, lower, digit, symbol, ≥ 12 chars.
   const newPassword = () => `Fr-${randomBytes(12).toString('base64url')}9a!`;
 
+  const subs: Record<string, string> = {};
   for (const u of DEMO_USERS) {
     const email = `${u.userId}@demo.freeroom.test`; // reserved TLD: undeliverable by design
     let attrs: { Name?: string; Value?: string }[] | undefined;
@@ -85,10 +87,13 @@ if (o.DemoMode === 'true') {
         }),
       );
     }
+    subs[u.userId] = sub;
     await putUser(db, { ...u, userId: sub });
     await putPrivate(db, sub, await contacts.encrypt(sub, { email, phone: '+1 413 555 0100' }));
   }
   writeFileSync(credsFile, JSON.stringify(creds, null, 2), { mode: 0o600 });
+  const seeded = await seedDemoOnce(db, subs as DemoIds, new Date());
+  console.log(seeded ? `Demo data seeded: ${JSON.stringify(seeded)}` : 'Demo data already seeded');
   console.log(
     `Demo users ready (${DEMO_USERS.map((u) => u.userId).join(', ')}); credentials in infra/${credsFile}`,
   );

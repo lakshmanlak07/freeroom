@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx scripts/dev.ts",
+    "e2e": "tsx scripts/e2e.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },

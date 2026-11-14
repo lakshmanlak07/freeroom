@@ -9,6 +9,7 @@ import { ContactService, LocalKeyProvider } from '../src/contact';
 import { makeDb } from '../src/data/db';
 import { createTableIfMissing } from '../src/data/table';
 import { DEMO_USERS, seedDemoUsers } from '../src/data/users';
+import { LOCAL_DEMO_IDS, seedDemoOnce } from '../src/demoSeed';
 import { createLogger } from '../src/logger';
 import { onChange } from '../src/notify/onChange';
 import { createStreamPoller } from '../src/notify/streamPoller';
@@ -34,6 +35,7 @@ await seedDemoUsers(db, contacts);
 const source = new MockSource({ loadInjected: () => loadInjected(db) });
 log.info('seed.sync.start');
 await syncSchedule({ db, source, now: new Date(), log });
+log.info('seed.demo', { result: await seedDemoOnce(db, LOCAL_DEMO_IDS, new Date()) });
 
 const poller = createStreamPoller(db, endpoint, (records) => onChange({ db, log }, records), {
   start: 'LATEST',

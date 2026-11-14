@@ -24,6 +24,8 @@ export const keys = {
   syncRunPk: (source: string) => `SYNC#${source}`,
   injectedClass: (eventId: string) => ({ PK: 'MOCK25LIVE', SK: `INJECT#${eventId}` }),
   injectedPk: 'MOCK25LIVE',
+  /** Demo alias → userId map (Cognito subs when deployed); written by postDeploy. */
+  demoIds: { PK: 'DEMO', SK: 'IDS' },
 
   // P3: identity, contact, claims, notifications
   userPrivate: (id: string) => ({ PK: `USER#${id}`, SK: 'PRIVATE' }),

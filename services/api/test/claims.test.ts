@@ -285,9 +285,11 @@ describe('sweeper (BR-6)', () => {
     expect(await sweep(t.db, cutoff)).toEqual({ released: 0, expired: 0 });
   });
 
-  it('reset wipes reservations (admin)', async () => {
+  it('reset wipes reservations, then re-seeds the demo (admin)', async () => {
     const r = await t.req('admin1', 'POST', '/demo/reset');
     expect(r.body.deleted).toBeGreaterThan(0);
-    expect((await t.req('student2', 'GET', '/me/reservations')).body.reservations).toEqual([]);
+    // Only the freshly seeded claimable one is left for student2; everything earlier is gone.
+    const left = (await t.req('student2', 'GET', '/me/reservations')).body.reservations;
+    expect(left.map((x: { id: string }) => x.id)).toEqual([r.body.seeded.claimable]);
   });
 });
