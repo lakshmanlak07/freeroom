@@ -47,16 +47,18 @@ export interface ResEvent {
   actorId: string | null;
   reason?: string;
   data?: Record<string, unknown>;
+  /** Internal: user ids the notifier should inform. Never returned by the API. */
+  notify?: string[];
 }
 
-type TxItem = NonNullable<TransactWriteCommandInput['TransactItems']>[number];
+export type TxItem = NonNullable<TransactWriteCommandInput['TransactItems']>[number];
 
 export const asInterval = (r: Pick<ReservationRecord, 'start' | 'end'>) => ({
   start: new Date(r.start),
   end: new Date(r.end),
 });
 
-const toRecord = (i: Item): ReservationRecord => ({
+export const toRecord = (i: Item): ReservationRecord => ({
   id: i.id as string,
   roomId: i.roomId as string,
   ownerId: i.ownerId as string,
@@ -72,7 +74,7 @@ const toRecord = (i: Item): ReservationRecord => ({
   version: i.version as number,
 });
 
-const eventPut = (
+export const eventPut = (
   db: Db,
   resId: string,
   seq: number,
@@ -83,13 +85,19 @@ const eventPut = (
   return {
     Put: {
       TableName: db.table,
-      Item: { ...keys.resEvent(resId, e.at, seq, eventId), eventId, ...e, ttl: ttlFrom(now, 365) },
+      Item: {
+        ...keys.resEvent(resId, e.at, seq, eventId),
+        eventId,
+        reservationId: resId,
+        ...e,
+        ttl: ttlFrom(now, 365),
+      },
       ConditionExpression: 'attribute_not_exists(PK)', // audit is append-only
     },
   };
 };
 
-const quotaRemove = (db: Db, ownerId: string, resId: string): TxItem => ({
+export const quotaRemove = (db: Db, ownerId: string, resId: string): TxItem => ({
   Update: {
     TableName: db.table,
     Key: keys.quota(ownerId),
@@ -99,10 +107,10 @@ const quotaRemove = (db: Db, ownerId: string, resId: string): TxItem => ({
   },
 });
 
-const reasonCodes = (e: unknown): (string | undefined)[] =>
+export const reasonCodes = (e: unknown): (string | undefined)[] =>
   e instanceof TransactionCanceledException ? (e.CancellationReasons ?? []).map((r) => r.Code) : [];
 
-const jitter = (attempt: number) =>
+export const jitter = (attempt: number) =>
   new Promise((r) => setTimeout(r, Math.random() * 25 * (attempt + 1)));
 
 export async function getReservation(db: Db, id: string): Promise<ReservationRecord | null> {
@@ -227,6 +235,10 @@ export async function createReservation(db: Db, input: CreateInput): Promise<Cre
             GSI1SK: keys.gsi1.resSk(rec.start, rec.id),
             GSI2PK: keys.gsi2.userPk(rec.ownerId),
             GSI2SK: keys.gsi2.resSk(rec.start),
+            ...(rec.status === 'PENDING_CONFIRMATION' && {
+              GSI4PK: keys.gsi4.sweepRes,
+              GSI4SK: keys.gsi4.sk(rec.cutoffAt, rec.id),
+            }),
           },
           ConditionExpression: 'attribute_not_exists(PK)',
         },
@@ -342,7 +354,8 @@ export async function confirmReservation(
             Update: {
               TableName: db.table,
               Key: keys.reservation(rec.id),
-              UpdateExpression: 'SET #s = :c, confirmedAt = :now, version = version + :one',
+              UpdateExpression:
+                'SET #s = :c, confirmedAt = :now, version = version + :one REMOVE GSI4PK, GSI4SK',
               ConditionExpression: '#s = :p AND cutoffAt > :now AND ownerId = :owner',
               ExpressionAttributeNames: { '#s': 'status' },
               ExpressionAttributeValues: {
@@ -382,7 +395,7 @@ export async function cancelReservation(
             Update: {
               TableName: db.table,
               Key: keys.reservation(rec.id),
-              UpdateExpression: 'SET #s = :x, version = version + :one',
+              UpdateExpression: 'SET #s = :x, version = version + :one REMOVE GSI4PK, GSI4SK',
               ConditionExpression: '#s IN (:p, :c)',
               ExpressionAttributeNames: { '#s': 'status' },
               ExpressionAttributeValues: {
@@ -433,7 +446,8 @@ export async function releaseForClassConflict(
       Update: {
         TableName: db.table,
         Key: keys.reservation(rec.id),
-        UpdateExpression: 'SET #s = :r, releaseReason = :why, version = version + :one',
+        UpdateExpression:
+          'SET #s = :r, releaseReason = :why, version = version + :one REMOVE GSI4PK, GSI4SK',
         ConditionExpression: '#s IN (:p, :c)',
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: {
@@ -463,6 +477,7 @@ export async function releaseForClassConflict(
         actorId: null,
         reason: 'CLASS_CONFLICT',
         data: { class: details, alternatives },
+        notify: [rec.ownerId],
       },
       now,
     ),
@@ -498,4 +513,73 @@ export async function releaseForClassConflict(
     if (reasonCodes(e).includes('ConditionalCheckFailed')) return false;
     throw e;
   }
+}
+
+/** Sweeper (BR-6): unconfirmed at cutoff → RELEASED (UNCONFIRMED). Idempotent via condition. */
+export async function releaseUnconfirmed(db: Db, rec: ReservationRecord, now: Date) {
+  const nowIso = now.toISOString();
+  try {
+    await db.doc.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Update: {
+              TableName: db.table,
+              Key: keys.reservation(rec.id),
+              UpdateExpression:
+                'SET #s = :r, releaseReason = :why, version = version + :one REMOVE GSI4PK, GSI4SK',
+              ConditionExpression: '#s = :p AND cutoffAt <= :now',
+              ExpressionAttributeNames: { '#s': 'status' },
+              ExpressionAttributeValues: {
+                ':r': 'RELEASED',
+                ':why': 'UNCONFIRMED',
+                ':p': 'PENDING_CONFIRMATION',
+                ':now': nowIso,
+                ':one': 1,
+              },
+            },
+          },
+          quotaRemove(db, rec.ownerId, rec.id),
+          eventPut(
+            db,
+            rec.id,
+            0,
+            {
+              type: 'RELEASED',
+              at: nowIso,
+              actorId: null,
+              reason: 'UNCONFIRMED',
+              notify: [rec.ownerId],
+            },
+            now,
+          ),
+          ...enumerateSlots(asInterval(rec)).map((s): TxItem => ({
+            Delete: {
+              TableName: db.table,
+              Key: keys.lock(rec.roomId, s.toISOString()),
+              ConditionExpression: 'resId = :id',
+              ExpressionAttributeValues: { ':id': rec.id },
+            },
+          })),
+        ],
+      }),
+    );
+    return true;
+  } catch (e) {
+    if (reasonCodes(e).includes('ConditionalCheckFailed')) return false;
+    throw e;
+  }
+}
+
+/** Reservations still PENDING_CONFIRMATION whose cutoff is at or before now (sparse GSI4). */
+export async function listDueUnconfirmed(db: Db, now: Date) {
+  const items = await queryAll(db, {
+    IndexName: 'GSI4',
+    KeyConditionExpression: 'GSI4PK = :p AND GSI4SK <= :u',
+    ExpressionAttributeValues: {
+      ':p': keys.gsi4.sweepRes,
+      ':u': keys.gsi4.dueBy(now.toISOString()),
+    },
+  });
+  return items.map(toRecord);
 }

@@ -1,27 +1,43 @@
 import { type RoleLimits } from '@freeroom/domain';
 import { ERROR_STATUS, type ApiError, type ErrorCode, type Role } from '@freeroom/shared';
 import { Hono } from 'hono';
+import type { VerifyIdToken } from './auth';
+import type { ContactService } from './contact';
 import type { Db } from './data/db';
 import { getUser, type UserProfile } from './data/users';
 import { AppError } from './errors';
 import { createLogger, type Logger } from './logger';
+import { claimRoutes, contactRevealRoutes } from './routes/claims';
 import { demoRoutes, mock25liveRoutes } from './routes/dev';
+import { notificationRoutes } from './routes/notifications';
 import { reservationRoutes } from './routes/reservations';
 import { roomRoutes } from './routes/rooms';
+import { meRoutes, registerRoutes } from './routes/users';
 import type { ScheduleSource } from './twentyfive/source';
 
 export { AppError };
+
+/**
+ * Which routes this deployment serves. `privileged` = GET/PATCH /me + GET /claims/:id/contact,
+ * deployed as its own Lambda whose role alone holds kms:Decrypt (PRD §9). `main` = everything else.
+ */
+export type Surface = 'all' | 'main' | 'privileged';
 
 export interface AppDeps {
   db: Db;
   source: ScheduleSource;
   now?: () => Date;
   logger?: Logger;
+  /** Cognito ID-token verification (aws-jwt-verify). */
+  verifyIdToken?: VerifyIdToken;
+  uidPepper?: () => Promise<string>;
+  contacts?: ContactService;
+  surface?: Surface;
   /** `x-dev-user` header auth. Only when NODE_ENV=development; refused in prod. */
   devAuth?: boolean;
   /** /mock25live/* endpoints. Refused in prod. */
   mock25live?: boolean;
-  /** /demo/* controls. Refused in prod. */
+  /** /demo/* controls (DEMO_MODE). Refused in prod. */
   demo?: boolean;
   limits?: Readonly<Record<Role, RoleLimits>>;
   refreshTimeoutMs?: number;
@@ -33,7 +49,10 @@ export interface Ctx extends AppDeps {
   refreshTimeoutMs: number;
 }
 
-export type Env = { Variables: { correlationId: string; log: Logger; user: UserProfile } };
+/** `user` is set for registered users; only /register and GET /me run without it. */
+export type Env = {
+  Variables: { correlationId: string; log: Logger; sub: string; user: UserProfile };
+};
 
 const errorBody = (
   code: ErrorCode,
@@ -45,6 +64,8 @@ const errorBody = (
 
 const CORRELATION_ID = /^[\w-]{1,64}$/;
 const PUBLIC = (path: string) => path === '/health' || path.startsWith('/mock25live/');
+const ALLOWED_UNREGISTERED = (method: string, path: string) =>
+  (method === 'POST' && path === '/register') || (method === 'GET' && path === '/me');
 
 export function createApp(deps: AppDeps) {
   if (process.env.STAGE === 'prod' && (deps.devAuth || deps.mock25live || deps.demo)) {
@@ -56,6 +77,7 @@ export function createApp(deps: AppDeps) {
     logger: deps.logger ?? createLogger({ service: 'api' }),
     refreshTimeoutMs: deps.refreshTimeoutMs ?? 2000,
   };
+  const surface = deps.surface ?? 'all';
   const app = new Hono<Env>();
 
   app.use('*', async (c, next) => {
@@ -76,23 +98,45 @@ export function createApp(deps: AppDeps) {
 
   app.use('*', async (c, next) => {
     if (PUBLIC(c.req.path)) return next();
-    let user: UserProfile | null = null;
-    if (ctx.devAuth) {
-      const devUser = c.req.header('x-dev-user');
-      if (devUser) user = await getUser(ctx.db, devUser);
+    let sub: string | undefined;
+    const devUser = ctx.devAuth ? c.req.header('x-dev-user') : undefined;
+    if (devUser) {
+      sub = devUser;
+    } else {
+      const auth = c.req.header('authorization');
+      const token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+      if (token && ctx.verifyIdToken) {
+        sub = await ctx.verifyIdToken(token).then(
+          (v) => v.sub,
+          () => undefined,
+        );
+      }
     }
-    // TODO(P3): Cognito ID token claims from the HTTP API JWT authorizer.
-    if (!user) throw new AppError('UNAUTHORIZED', 'Sign in required');
-    if (user.status === 'SUSPENDED') throw new AppError('FORBIDDEN', 'Account suspended');
-    c.set('user', user);
+    if (!sub) throw new AppError('UNAUTHORIZED', 'Sign in required');
+    const user = await getUser(ctx.db, sub);
+    if (user?.status === 'SUSPENDED') throw new AppError('FORBIDDEN', 'Account suspended');
+    c.set('sub', sub);
+    if (user) c.set('user', user);
+    else if (!ALLOWED_UNREGISTERED(c.req.method, c.req.path)) {
+      throw new AppError('FORBIDDEN', 'Complete registration first');
+    }
     return next();
   });
 
   app.get('/health', (c) => c.json({ ok: true as const }));
-  if (ctx.mock25live) app.route('/mock25live', mock25liveRoutes(ctx));
-  app.route('/', roomRoutes(ctx));
-  app.route('/', reservationRoutes(ctx));
-  if (ctx.demo) app.route('/', demoRoutes(ctx));
+  if (surface !== 'privileged') {
+    if (ctx.mock25live) app.route('/mock25live', mock25liveRoutes(ctx));
+    app.route('/', registerRoutes(ctx));
+    app.route('/', roomRoutes(ctx));
+    app.route('/', reservationRoutes(ctx));
+    app.route('/', claimRoutes(ctx));
+    app.route('/', notificationRoutes(ctx));
+    if (ctx.demo) app.route('/', demoRoutes(ctx));
+  }
+  if (surface !== 'main') {
+    app.route('/', meRoutes(ctx));
+    app.route('/', contactRevealRoutes(ctx));
+  }
 
   app.notFound((c) => c.json(errorBody('NOT_FOUND', 'Route not found'), 404));
   app.onError((e, c) => {

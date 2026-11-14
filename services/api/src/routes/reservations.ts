@@ -15,6 +15,7 @@ import {
 import {
   CreateReservationRequestSchema,
   MyReservationsQuerySchema,
+  type AlternativeRoom,
   type MyReservationsResponse,
   type ReservationEventsResponse,
 } from '@freeroom/shared';
@@ -36,7 +37,8 @@ import { getRoomDay } from '../data/schedule';
 import { getUser, getUsers } from '../data/users';
 import { AppError, parse } from '../errors';
 import { syncSchedule } from '../sync/syncSchedule';
-import { UNKNOWN_OWNER, reservationDetail } from '../views';
+import { UNKNOWN_OWNER, reservationDetail, reservationItem } from '../views';
+import { listReservationClaims } from '../data/claims';
 
 const STALE_MS = 15 * 60_000; // CLASS_CACHE_MAX_STALENESS
 const FAIL_CLOSED_MS = 6 * 3_600_000; // §8.1: unreachable 25Live + data older than 6h → 503
@@ -179,9 +181,19 @@ export function reservationRoutes(ctx: Ctx) {
       : c.json(outcome.body as object, outcome.status as 201);
   });
 
-  r.get('/reservations/:id', async (c) =>
-    c.json(await detail(await load(c.req.param('id')), c.get('user').userId)),
-  );
+  /** Full detail for owner, claimants and admins; everyone else gets the public projection. */
+  const canSeeDetail = async (rec: ReservationRecord, user: Env['Variables']['user']) =>
+    rec.ownerId === user.userId ||
+    can(user, 'admin:audit') ||
+    (await listReservationClaims(ctx.db, rec.id)).some((x) => x.requesterId === user.userId);
+
+  r.get('/reservations/:id', async (c) => {
+    const user = c.get('user');
+    const rec = await load(c.req.param('id'));
+    if (await canSeeDetail(rec, user)) return c.json(await detail(rec, user.userId));
+    const owner = (await getUser(ctx.db, rec.ownerId)) ?? UNKNOWN_OWNER;
+    return c.json(reservationItem(rec, owner, user.userId, ctx.now()));
+  });
 
   r.get('/me/reservations', async (c) => {
     const user = c.get('user');
@@ -228,8 +240,7 @@ export function reservationRoutes(ctx: Ctx) {
   r.get('/reservations/:id/events', async (c) => {
     const user = c.get('user');
     const rec = await load(c.req.param('id'));
-    // TODO(P3): claimants on this reservation may also read its history.
-    if (rec.ownerId !== user.userId && !can(user, 'admin:audit')) {
+    if (!(await canSeeDetail(rec, user))) {
       throw new AppError('FORBIDDEN', 'Not allowed');
     }
     const events = await listReservationEvents(ctx.db, rec.id);
@@ -246,7 +257,17 @@ export function reservationRoutes(ctx: Ctx) {
           ? (actors.get(e.actorId)?.displayAlias ?? UNKNOWN_OWNER.displayAlias)
           : null,
         ...(e.reason ? { reason: e.reason } : {}),
-        ...(e.data ? { details: e.data } : {}),
+        // Allowlist: only class details + alternatives leave the server (no user ids).
+        ...(e.data?.class || e.data?.alternatives
+          ? {
+              details: {
+                ...(e.data.class ? { class: e.data.class as Record<string, unknown> } : {}),
+                ...(e.data.alternatives
+                  ? { alternatives: e.data.alternatives as AlternativeRoom[] }
+                  : {}),
+              },
+            }
+          : {}),
       })),
     };
     return c.json(body);

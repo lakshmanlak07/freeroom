@@ -25,6 +25,29 @@ export const keys = {
   injectedClass: (eventId: string) => ({ PK: 'MOCK25LIVE', SK: `INJECT#${eventId}` }),
   injectedPk: 'MOCK25LIVE',
 
+  // P3: identity, contact, claims, notifications
+  userPrivate: (id: string) => ({ PK: `USER#${id}`, SK: 'PRIVATE' }),
+  userPk: (id: string) => `USER#${id}`,
+  uid: (hash: string) => ({ PK: `UID#${hash}`, SK: 'UID' }),
+  claim: (resId: string, claimId: string) => ({ PK: `RES#${resId}`, SK: `CLAIM#${claimId}` }),
+  openClaim: (resId: string, requesterId: string) => ({
+    PK: `RES#${resId}`,
+    SK: `OPENCLAIM#${requesterId}`,
+  }),
+  claimQuota: (userId: string) => ({ PK: `USER#${userId}`, SK: 'CLAIMQUOTA' }),
+  reveal: (resId: string, requesterId: string) => ({
+    PK: `RES#${resId}`,
+    SK: `REVEAL#${requesterId}`,
+  }),
+  audit: (resId: string, atIso: string, id: string) => ({
+    PK: `RES#${resId}`,
+    SK: `AUDIT#${atIso}#${id}`,
+  }),
+  notification: (userId: string, notifId: string) => ({
+    PK: `USER#${userId}`,
+    SK: `NOTIF#${notifId}`,
+  }),
+
   // Secondary indexes
   gsi1: {
     catalog: 'CATALOG',
@@ -37,6 +60,18 @@ export const keys = {
   gsi2: {
     userPk: (id: string) => `USER#${id}`,
     resSk: (startIso: string) => `RES#${startIso}`,
+    claimSk: (createdIso: string) => `CLAIM#${createdIso}`,
+  },
+  gsi3: {
+    incomingPk: (ownerId: string) => `USER#${ownerId}#INCOMING`,
+    claimSk: (createdIso: string) => `CLAIM#${createdIso}`,
+  },
+  gsi4: {
+    sweepRes: 'SWEEP#RES',
+    sweepClaim: 'SWEEP#CLAIM',
+    sk: (dueIso: string, id: string) => `${dueIso}#${id}`,
+    /** Upper bound for "due at or before now". */
+    dueBy: (nowIso: string) => `${nowIso}#￿`,
   },
 
   prefix: {
@@ -46,5 +81,8 @@ export const keys = {
     evt: 'EVT#',
     run: 'RUN#',
     inject: 'INJECT#',
+    claim: 'CLAIM#',
+    notif: 'NOTIF#',
+    idemp: 'IDEMP#',
   },
 } as const;

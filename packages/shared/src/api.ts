@@ -62,13 +62,21 @@ export const MeResponseSchema = z.object({
 });
 export type MeResponse = z.infer<typeof MeResponseSchema>;
 
+/** /register returns the profile WITHOUT contact or universityId. */
+export const RegisterResponseSchema = MeResponseSchema.omit({ contact: true });
+export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
+
 export const UpdateMeRequestSchema = z
   .object({
     displayAlias: SafeText(40).pipe(z.string().min(1)),
     contact: ContactSchema,
     shareChannel: ShareChannelSchema,
   })
-  .partial();
+  .partial()
+  .strict();
+
+/** Admin-only. ADMIN itself is never assignable through the API. */
+export const AdminSetRoleRequestSchema = z.object({ role: RoleSchema.exclude(['ADMIN']) });
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequestSchema>;
 
 // ---------- Buildings / rooms ----------
@@ -188,6 +196,10 @@ export const ReservationDetailSchema = ReservationItemSchema.omit({ kind: true }
 });
 export type ReservationDetail = z.infer<typeof ReservationDetailSchema>;
 
+/** GET /reservations/:id: full detail for owner/claimants/admin, public item for everyone else. */
+export const ReservationResponseSchema = z.union([ReservationDetailSchema, ReservationItemSchema]);
+export type ReservationResponse = z.infer<typeof ReservationResponseSchema>;
+
 export const MyReservationsQuerySchema = z.object({
   scope: z.enum(['upcoming', 'past']).default('upcoming'),
 });
@@ -272,6 +284,8 @@ export const NotificationSchema = z.object({
   body: z.string(),
   read: z.boolean(),
   createdAt: IsoDateTime,
+  /** BR-9: alternative rooms attached to class-conflict notifications. */
+  alternatives: z.array(AlternativeRoomSchema).optional(),
 });
 export type Notification = z.infer<typeof NotificationSchema>;
 export const NotificationsQuerySchema = z.object({ cursor: z.string().max(1024).optional() });

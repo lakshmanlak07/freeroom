@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { assertNoPII } from '@freeroom/domain';
 import { createApp, type AppDeps } from '../src/app';
+import { ContactService, LocalKeyProvider } from '../src/contact';
 import { makeDb } from '../src/data/db';
 import { createTableIfMissing } from '../src/data/table';
-import { DEMO_USERS, putUser } from '../src/data/users';
+import { seedDemoUsers } from '../src/data/users';
 import { createLogger } from '../src/logger';
 import { loadInjected, syncSchedule } from '../src/sync/syncSchedule';
 import { MockSource } from '../src/twentyfive/mock';
@@ -11,6 +12,12 @@ import type { ScheduleSource } from '../src/twentyfive/source';
 
 export const ENDPOINT = process.env.DYNAMODB_ENDPOINT ?? 'http://localhost:8000';
 export const silent = createLogger({}, () => {});
+
+/** Test stand-in for the Cognito verifier: "Bearer test:<sub>". The real verifier is tested in auth.test.ts. */
+export const fakeVerify = async (token: string) => {
+  if (!token.startsWith('test:')) throw new Error('bad token');
+  return { sub: token.slice(5) };
+};
 
 /** Fresh table per suite; mock campus with NO generated classes (tests inject what they need). */
 export async function setupTestApp(opts: {
@@ -21,7 +28,8 @@ export async function setupTestApp(opts: {
 }) {
   const db = makeDb({ table: `t-${randomUUID()}`, endpoint: ENDPOINT });
   await createTableIfMissing(db.raw, db.table);
-  await Promise.all(DEMO_USERS.map((u) => putUser(db, u)));
+  const contacts = new ContactService(new LocalKeyProvider());
+  await seedDemoUsers(db, contacts);
   const source =
     opts.source ?? new MockSource({ generateClasses: false, loadInjected: () => loadInjected(db) });
   const clock = { now: opts.now };
@@ -31,26 +39,38 @@ export async function setupTestApp(opts: {
     source,
     now: () => clock.now,
     logger: silent,
+    contacts,
+    uidPepper: async () => 'test-pepper',
+    verifyIdToken: fakeVerify,
     devAuth: true,
     demo: true,
     ...opts.deps,
   });
 
-  /** Every API response in tests goes through assertNoPII (CLAUDE.md). */
+  /**
+   * Every API response goes through assertNoPII (CLAUDE.md), except the two routes that exist to
+   * return the caller's own / an approved owner's contact: GET|PATCH /me and GET /claims/:id/contact.
+   */
   async function req(
     user: string,
     method: string,
     path: string,
     body?: unknown,
     headers: Record<string, string> = {},
+    o: { allowPII?: boolean; bearer?: boolean } = {},
   ) {
     const res = await app.request(path, {
       method,
-      headers: { 'x-dev-user': user, 'content-type': 'application/json', ...headers },
+      headers: {
+        ...(o.bearer ? { authorization: `Bearer test:${user}` } : { 'x-dev-user': user }),
+        'content-type': 'application/json',
+        ...headers,
+      },
       ...(body !== undefined && { body: JSON.stringify(body) }),
     });
     const json = (await res.json()) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    assertNoPII(json);
+    const exempt = /^\/me$|^\/claims\/[^/]+\/contact$/.test(path.split('?')[0]!);
+    if (!(o.allowPII && exempt)) assertNoPII(json);
     return { status: res.status, body: json };
   }
 
@@ -70,5 +90,5 @@ export async function setupTestApp(opts: {
       { 'idempotency-key': key },
     );
 
-  return { db, app, source, clock, req, reserve };
+  return { db, app, source, clock, contacts, req, reserve };
 }
