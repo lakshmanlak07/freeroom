@@ -37,11 +37,36 @@ export function enumerateSlots(iv: Interval): Date[] {
   return slots;
 }
 
+/**
+ * Every 15-min slot an arbitrary interval touches (floor start, ceil end). Used for class
+ * locks: a 9:05–9:55 class blocks 9:00–10:00, exactly the aligned reservations it overlaps.
+ */
+export function coveringSlots(iv: Interval): Date[] {
+  const start = Math.floor(iv.start.getTime() / SLOT_MS) * SLOT_MS;
+  const end = Math.ceil(iv.end.getTime() / SLOT_MS) * SLOT_MS;
+  return enumerateSlots({ start: new Date(start), end: new Date(end) });
+}
+
 /** Campus calendar day (yyyy-MM-dd) for an instant. */
 export const campusDay = (d: Date): string => formatInTimeZone(d, CAMPUS_TZ, 'yyyy-MM-dd');
 
 export const formatCampus = (d: Date, pattern: string): string =>
   formatInTimeZone(d, CAMPUS_TZ, pattern);
+
+/** Calendar arithmetic on yyyy-MM-dd strings (no time zone involved). */
+export const addDays = (day: string, n: number): string =>
+  new Date(Date.parse(`${day}T12:00:00Z`) + n * 24 * HOUR_MS).toISOString().slice(0, 10);
+
+/** UTC instant of campus midnight starting `day` (23h/25h days handled by the TZ db). */
+export const campusDayStart = (day: string): Date => fromZonedTime(`${day}T00:00`, CAMPUS_TZ);
+
+/** Campus days touched by [start, end). */
+export function campusDaysOf(iv: Interval): string[] {
+  const days: string[] = [];
+  const last = campusDay(new Date(iv.end.getTime() - 1));
+  for (let d = campusDay(iv.start); d <= last; d = addDays(d, 1)) days.push(d);
+  return days;
+}
 
 /** Campus wall-clock time ("2026-11-16T09:00") → UTC instant. */
 export const campusLocalToUtc = (local: string): Date => fromZonedTime(local, CAMPUS_TZ);

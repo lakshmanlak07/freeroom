@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/local.ts",
+    "dev": "tsx scripts/dev.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1169.0",
+    "@aws-sdk/client-secrets-manager": "^3.1169.0",
+    "@aws-sdk/lib-dynamodb": "^3.1169.0",
     "@freeroom/domain": "workspace:*",
     "@freeroom/shared": "workspace:*",
     "@hono/node-server": "^1.19.19",
-    "hono": "^4.13.18"
+    "hono": "^4.13.18",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

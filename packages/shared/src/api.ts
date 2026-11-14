@@ -194,6 +194,19 @@ export const MyReservationsQuerySchema = z.object({
 export const MyReservationsResponseSchema = z.object({
   reservations: z.array(ReservationDetailSchema),
 });
+export type MyReservationsResponse = z.infer<typeof MyReservationsResponseSchema>;
+
+/** BR-9 alternative room (attached to RELEASED/CLASS_CONFLICT events). */
+export const AlternativeRoomSchema = z.object({
+  roomId: Id,
+  name: z.string(),
+  buildingId: Id,
+  buildingName: z.string(),
+  capacity: z.number().int(),
+  start: IsoDateTime,
+  end: IsoDateTime,
+});
+export type AlternativeRoom = z.infer<typeof AlternativeRoomSchema>;
 
 export const ReservationEventSchema = z.object({
   eventId: Id,
@@ -201,10 +214,20 @@ export const ReservationEventSchema = z.object({
   at: IsoDateTime,
   actorAlias: z.string().nullable(),
   reason: z.string().optional(),
+  /** Class details / alternatives for CONFLICTED + RELEASED. Never contains PII. */
+  details: z
+    .object({
+      class: z.record(z.unknown()).optional(),
+      alternatives: z.array(AlternativeRoomSchema).optional(),
+    })
+    .optional(),
 });
 export const ReservationEventsResponseSchema = z.object({
   events: z.array(ReservationEventSchema),
 });
+export type ReservationEventsResponse = z.infer<typeof ReservationEventsResponseSchema>;
+export type BuildingsResponse = z.infer<typeof BuildingsResponseSchema>;
+export type RoomSearchResponse = z.infer<typeof RoomSearchResponseSchema>;
 
 // ---------- Claims ----------
 export const CreateClaimRequestSchema = z.object({

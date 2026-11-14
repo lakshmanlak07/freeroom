@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev:api": "docker compose up -d dynamodb && pnpm --filter @freeroom/api dev",
+    "dev:api": "pnpm --filter @freeroom/api dev",
     "dev:web": "pnpm --filter @freeroom/web dev",
     "test": "pnpm -r --if-present test",
     "lint": "eslint . && prettier --check .",

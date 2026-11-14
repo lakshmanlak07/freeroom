@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   SLOT_MS,
+  addDays,
   addHours,
   campusDay,
+  campusDayStart,
+  campusDaysOf,
   campusLocalToUtc,
+  coveringSlots,
   enumerateSlots,
   formatCampus,
   isSlotAligned,
@@ -88,6 +92,17 @@ describe('slots', () => {
     expect(enumerateSlots(iv('2026-11-01T04:00Z', '2026-11-01T08:00Z'))).toHaveLength(16);
   });
 
+  it('covers every slot an unaligned class touches', () => {
+    const slots = coveringSlots(iv('2026-11-16T14:05Z', '2026-11-16T14:55Z'));
+    expect(slots.map((d) => d.toISOString())).toEqual([
+      '2026-11-16T14:00:00.000Z',
+      '2026-11-16T14:15:00.000Z',
+      '2026-11-16T14:30:00.000Z',
+      '2026-11-16T14:45:00.000Z',
+    ]);
+    expect(coveringSlots(iv('2026-11-16T14:00Z', '2026-11-16T14:15Z'))).toHaveLength(1);
+  });
+
   it('rejects unaligned or empty intervals', () => {
     expect(() => enumerateSlots(iv('2026-11-16T14:05Z', '2026-11-16T15:00Z'))).toThrow(RangeError);
     expect(() => enumerateSlots(iv('2026-11-16T14:00Z', '2026-11-16T14:00Z'))).toThrow(RangeError);
@@ -115,6 +130,21 @@ describe('campus time (America/New_York)', () => {
   });
   it('formats in campus time', () => {
     expect(formatCampus(t('2026-11-16T19:15:00Z'), 'h:mm a')).toBe('2:15 PM');
+  });
+  it('does day arithmetic and campus midnights across DST', () => {
+    expect(addDays('2026-10-31', 2)).toBe('2026-11-02');
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+    expect(campusDayStart('2026-11-01').toISOString()).toBe('2026-11-01T04:00:00.000Z'); // EDT
+    expect(campusDayStart('2026-11-02').toISOString()).toBe('2026-11-02T05:00:00.000Z'); // EST
+  });
+  it('lists campus days an interval touches (half-open)', () => {
+    expect(campusDaysOf(iv('2026-11-16T14:00Z', '2026-11-16T15:00Z'))).toEqual(['2026-11-16']);
+    // 23:00–01:00 EST spans two campus days; ending exactly at midnight does not.
+    expect(campusDaysOf(iv('2026-11-17T04:00Z', '2026-11-17T06:00Z'))).toEqual([
+      '2026-11-16',
+      '2026-11-17',
+    ]);
+    expect(campusDaysOf(iv('2026-11-17T04:00Z', '2026-11-17T05:00Z'))).toEqual(['2026-11-16']);
   });
   it('adds real hours', () => {
     expect(addHours(t('2026-11-16T14:00:00Z'), -4).toISOString()).toBe('2026-11-16T10:00:00.000Z');
