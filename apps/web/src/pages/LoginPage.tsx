@@ -13,7 +13,7 @@ const DEMO = [
 
 export function BrandPanel({ children }: { children?: React.ReactNode }) {
   return (
-    <section className="bg-rail md:bg-brand-gradient relative flex flex-col justify-between gap-8 px-6 py-8 text-white md:px-12 md:py-14">
+    <section className="bg-rail relative flex flex-col justify-between gap-8 px-6 py-8 text-white md:px-12 md:py-14">
       <p className="flex items-center gap-2 text-2xl font-bold tracking-tight">
         <DoorOpen className="size-8" aria-hidden /> FreeRoom
       </p>

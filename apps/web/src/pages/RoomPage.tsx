@@ -72,7 +72,14 @@ export function RoomPage() {
   const today = campusDay(now);
   const day = sp.get('date') ?? today;
   const [view, setView] = useState<'timeline' | 'text'>(readView);
-  const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+  // "Rebook here" (BR-9 alternatives) links here with ?start=&end= to open the sheet prefilled.
+  const [range, setRange] = useState<{ start: Date; end: Date } | null>(() => {
+    const st = sp.get('start');
+    const en = sp.get('end');
+    return st && en && !Number.isNaN(Date.parse(st)) && !Number.isNaN(Date.parse(en))
+      ? { start: new Date(st), end: new Date(en) }
+      : null;
+  });
   const [claim, setClaim] = useState<ReservationItem | null>(null);
 
   const room = useQuery({ queryKey: ['room', roomId], queryFn: () => api.room(roomId) });
@@ -147,7 +154,7 @@ export function RoomPage() {
 
   return (
     <div>
-      <section className="bg-rail md:bg-brand-gradient px-4 py-6 text-white md:px-8">
+      <section className="bg-brand-gradient px-4 pt-6 pb-12 text-white md:px-8 md:pb-14">
         <Link
           to="/"
           className="inline-flex items-center gap-1 rounded-lg text-sm text-white/90 hover:text-white"
@@ -295,7 +302,10 @@ export function RoomPage() {
           day={day}
           range={range}
           items={items}
-          onClose={() => setRange(null)}
+          onClose={() => {
+            setRange(null);
+            if (sp.has('start')) setSp(day === today ? {} : { date: day }, { replace: true });
+          }}
           onChanged={refetch}
         />
       )}

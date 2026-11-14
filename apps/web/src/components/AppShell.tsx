@@ -1,5 +1,4 @@
 import type { Role } from '@freeroom/shared';
-import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   CalendarCheck,
@@ -13,6 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/auth/AuthProvider';
+import { NotificationBell, useNotifications } from '@/pages/NotificationsPage';
 import { useConfig } from '@/config';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -32,19 +32,17 @@ interface NavItem {
 }
 
 function useNav(): NavItem[] {
-  const { me, api } = useAuth();
-  const unread =
-    useQuery({
-      queryKey: ['notifications'],
-      queryFn: api.notifications,
-      refetchInterval: 30_000,
-    }).data?.notifications.filter((n) => !n.read).length ?? 0;
+  const { me } = useAuth();
+  const config = useConfig();
+  const unread = useNotifications().data?.notifications.filter((n) => !n.read).length ?? 0;
   return [
     { to: '/', label: 'Search', Icon: Search },
     { to: '/map', label: 'Map', Icon: MapIcon },
-    { to: '/me/reservations', label: 'My Reservations', Icon: CalendarCheck },
+    { to: '/me', label: 'My Reservations', Icon: CalendarCheck },
     { to: '/notifications', label: 'Notifications', Icon: Bell, badge: unread },
-    ...(me?.role === 'ADMIN' ? [{ to: '/demo', label: 'Demo', Icon: FlaskConical }] : []),
+    ...(me?.role === 'ADMIN' && config.demoMode
+      ? [{ to: '/demo', label: 'Demo', Icon: FlaskConical }]
+      : []),
   ];
 }
 
@@ -220,6 +218,7 @@ function TopBar() {
           Demo data
         </span>
       )}
+      <NotificationBell />
     </header>
   );
 }

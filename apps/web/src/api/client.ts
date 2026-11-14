@@ -19,7 +19,14 @@ import {
   type CreateReservationRequest,
   type ErrorCode,
   type RegisterRequest,
+  ContactRevealResponseSchema,
+  MyClaimsResponseSchema,
+  ReservationEventsResponseSchema,
+  type ApproveMode,
 } from '@freeroom/shared';
+
+/** Untyped JSON object (demo/admin responses that the UI only logs). */
+const AnyObject = { parse: (d: unknown) => (d ?? {}) as Record<string, unknown> };
 
 export class ApiError extends Error {
   constructor(
@@ -123,6 +130,40 @@ export function createApi(baseUrl: string, authHeaders: () => Promise<Record<str
     },
     register: (body: RegisterRequest) =>
       request('POST', '/register', RegisterResponseSchema, { body }),
+
+    // ---- P6: reservations lifecycle, claims, notifications, demo controls
+    confirmReservation: (id: string) =>
+      request('POST', `/reservations/${encodeURIComponent(id)}/confirm`, ReservationDetailSchema),
+    cancelReservation: (id: string) =>
+      request('DELETE', `/reservations/${encodeURIComponent(id)}`, ReservationDetailSchema),
+    reservationEvents: (id: string) =>
+      request(
+        'GET',
+        `/reservations/${encodeURIComponent(id)}/events`,
+        ReservationEventsResponseSchema,
+      ),
+    myClaims: (direction: 'incoming' | 'outgoing') =>
+      request('GET', `/me/claims${qs({ direction })}`, MyClaimsResponseSchema),
+    approveClaim: (claimId: string, mode: ApproveMode) =>
+      request('POST', `/claims/${encodeURIComponent(claimId)}/approve`, ClaimSchema, {
+        body: { mode },
+      }),
+    denyClaim: (claimId: string) =>
+      request('POST', `/claims/${encodeURIComponent(claimId)}/deny`, ClaimSchema),
+    withdrawClaim: (claimId: string) =>
+      request('POST', `/claims/${encodeURIComponent(claimId)}/withdraw`, ClaimSchema),
+    /** BR-5: the only call that returns another user's contact (approved requester only). */
+    claimContact: (claimId: string) =>
+      request('GET', `/claims/${encodeURIComponent(claimId)}/contact`, ContactRevealResponseSchema),
+    markRead: (body: { ids: string[] } | { all: true }) =>
+      request('POST', '/me/notifications/read', AnyObject, { body }),
+    demo: {
+      injectConflict: (reservationId: string) =>
+        request('POST', '/demo/inject-conflict', AnyObject, { body: { reservationId } }),
+      fastForward: (reservationId: string) =>
+        request('POST', '/demo/fast-forward', AnyObject, { body: { reservationId } }),
+      reset: () => request('POST', '/demo/reset', AnyObject),
+    },
   };
 }
 

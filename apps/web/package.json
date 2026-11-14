@@ -21,6 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.73.0",
+    "maplibre-gl": "^5.24.1",
     "react": "^19.1.10",
     "react-dom": "^19.1.10",
     "react-router": "^7.18.5",

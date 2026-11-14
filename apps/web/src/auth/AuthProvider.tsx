@@ -167,7 +167,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <FullPageSpinner />;
-  if (status === 'signedOut') return <Navigate to="/login" replace state={{ from: location }} />;
+  if (status === 'signedOut') return <Navigate to="/welcome" replace state={{ from: location }} />;
   if (status === 'needsRegistration') return <Navigate to="/register" replace />;
   return <>{children}</>;
 }

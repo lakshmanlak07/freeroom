@@ -47,22 +47,23 @@
 }
 
 /*
- * Signature horizontal gradient: brown → tan → sand → white. The dark end is held through the
- * left half so white text placed there stays ≥ 4.5:1 (body) — keep text in the left ~50%.
+ * Signature VERTICAL gradient: brown (top) → tan → sand → page cream (bottom), so page headers
+ * melt into the content. The dark part is held through the top ~60%; header bands carry extra
+ * bottom padding so white text always sits there (≥ 4.5:1).
  */
 @utility bg-brand-gradient {
   background-image: linear-gradient(
-    90deg,
+    180deg,
     #7b3f00 0%,
-    #8e5420 50%,
-    #b98c66 74%,
-    #e2cdb8 88%,
-    #ffffff 100%
+    #8e5420 60%,
+    #b98c66 80%,
+    #e2cdb8 92%,
+    #faf6f1 100%
   );
 }
-/* Rail keeps to the dark end so white text stays ≥ 4.5:1. */
+/* Vertical rail/panel gradient that stays dark top to bottom, so white text is ≥ 4.5:1 everywhere. */
 @utility bg-rail {
-  background-image: linear-gradient(90deg, #6a3600 0%, #7b3f00 55%, #8a4d16 100%);
+  background-image: linear-gradient(180deg, #6a3600 0%, #7b3f00 50%, #9a5b2a 100%);
 }
 /* BR-2: classes are striped (pattern), reservations solid. */
 @utility stripes-class {

@@ -6,7 +6,7 @@ import { TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
-import { fmtRange, fmtTime } from '@/lib/time';
+import { fmtDuration, fmtRange, fmtTime, useNow } from '@/lib/time';
 import { useToast } from './Toast';
 import { Button, inputClass } from './ui/button';
 
@@ -33,6 +33,9 @@ export function ClaimDialog({
   const toast = useToast();
   const [message, setMessage] = useState('');
   const [partySize, setPartySize] = useState(2);
+  const now = useNow(15_000);
+  const cutoff = reservation ? cutoffAt(new Date(reservation.start)) : null;
+  const closed = !!cutoff && now >= cutoff; // BR-6: no claims at or after start − 4h
   const claim = useMutation({
     mutationFn: () =>
       api.createClaim(reservation!.id, {
@@ -106,6 +109,26 @@ export function ClaimDialog({
                 className={`${inputClass} mt-1 tabular`}
               />
             </label>
+            {cutoff && (
+              <p
+                className={
+                  closed
+                    ? 'rounded-xl bg-line px-3 py-2 text-sm text-muted'
+                    : 'text-xs text-muted tabular'
+                }
+                role={closed ? 'status' : undefined}
+              >
+                {closed
+                  ? 'Requests closed at ' +
+                    fmtTime(cutoff) +
+                    ' — 4 hours before the reservation starts — so this room can’t be requested anymore.'
+                  : 'Requests close in ' +
+                    fmtDuration(cutoff.getTime() - now.getTime()) +
+                    ' (' +
+                    fmtTime(cutoff) +
+                    ', 4h before start).'}
+              </p>
+            )}
             {error && (
               <p
                 role="alert"
@@ -119,7 +142,7 @@ export function ClaimDialog({
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={claim.isPending}>
+              <Button type="submit" className="flex-1" disabled={claim.isPending || closed}>
                 {claim.isPending ? 'Sending…' : 'Send request'}
               </Button>
             </div>

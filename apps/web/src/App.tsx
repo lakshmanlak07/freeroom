@@ -1,4 +1,13 @@
-import { createBrowserRouter } from 'react-router';
+import { lazy, Suspense } from 'react';
+import { Navigate, createBrowserRouter } from 'react-router';
+import { Skeleton } from './components/EmptyState';
+import { DemoPage } from './pages/DemoPage';
+import { LandingPage } from './pages/LandingPage';
+import { MyReservationsPage } from './pages/MyReservationsPage';
+import { NotificationsPage } from './pages/NotificationsPage';
+
+// MapLibre is large: load the map page only when visited.
+const MapPage = lazy(() => import('./pages/MapPage'));
 import { RequireAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
 import { RouteError } from './components/ErrorBoundary';
@@ -6,9 +15,10 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { RoomPage } from './pages/RoomPage';
 import { SearchPage } from './pages/SearchPage';
-import { ComingSoon, NotFoundPage } from './pages/SimplePages';
+import { NotFoundPage } from './pages/SimplePages';
 
 export const router = createBrowserRouter([
+  { path: '/welcome', element: <LandingPage />, errorElement: <RouteError /> },
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
   { path: '/register', element: <RegisterPage />, errorElement: <RouteError /> },
   {
@@ -21,10 +31,18 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <SearchPage /> },
       { path: 'rooms/:roomId', element: <RoomPage /> },
-      { path: 'map', element: <ComingSoon title="Campus map" /> },
-      { path: 'me/reservations', element: <ComingSoon title="My reservations" /> },
-      { path: 'notifications', element: <ComingSoon title="Notifications" /> },
-      { path: 'demo', element: <ComingSoon title="Demo controls" /> },
+      {
+        path: 'map',
+        element: (
+          <Suspense fallback={<Skeleton className="m-6 h-96" />}>
+            <MapPage />
+          </Suspense>
+        ),
+      },
+      { path: 'me', element: <MyReservationsPage /> },
+      { path: 'me/reservations', element: <Navigate to="/me" replace /> },
+      { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'demo', element: <DemoPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

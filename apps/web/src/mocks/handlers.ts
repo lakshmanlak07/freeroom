@@ -18,6 +18,7 @@ import {
 import type { ErrorCode, ReservationDetail, RoomStatus } from '@freeroom/shared';
 import { delay, http, HttpResponse } from 'msw';
 import { BUILDINGS, ROOMS, classesFor, db, type MockReservation } from './data';
+import { trackClaim } from './handlersP6';
 
 const err = (status: number, code: ErrorCode, message: string, details?: Record<string, unknown>) =>
   HttpResponse.json({ error: { code, message, ...(details && { details }) } }, { status });
@@ -289,6 +290,16 @@ export const handlers = [
     const b = (await request.json()) as { message?: string; partySize: number };
     const claimId = `${r.id}_${crypto.randomUUID()}`;
     db.claims.push({ claimId, reservationId: r.id, requesterId: u });
+    trackClaim({
+      claimId,
+      reservationId: r.id,
+      requesterId: u,
+      ownerId: r.ownerId,
+      ...(b.message ? { message: b.message } : {}),
+      partySize: b.partySize,
+      createdAt: now.toISOString(),
+      expiresAt: r.cutoffAt,
+    });
     return HttpResponse.json(
       {
         claimId,

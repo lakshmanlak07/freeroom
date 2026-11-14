@@ -75,7 +75,7 @@ export function SearchPage() {
 
   return (
     <div>
-      <section className="bg-rail md:bg-brand-gradient px-4 py-8 text-white md:px-8">
+      <section className="bg-brand-gradient px-4 pt-8 pb-14 text-white md:px-8 md:pb-16">
         <h1 className="text-3xl font-bold md:text-4xl">Find a free room</h1>
         <p className="mt-1 text-white/90">Live availability across campus · updates every 30s</p>
       </section>

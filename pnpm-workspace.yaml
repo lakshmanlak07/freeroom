@@ -5,6 +5,7 @@ packages:
   - infra
 allowBuilds:
   esbuild: true
+  msw: false # postinstall only copies public/mockServiceWorker.js, which is committed
 minimumReleaseAgeExclude:
   - aws-cdk-lib@2.277.0
   - '@aws-sdk/client-dynamodb@3.1169.0'
