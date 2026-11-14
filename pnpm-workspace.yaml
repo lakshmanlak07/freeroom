@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - services/*
+  - apps/*
+  - infra
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - aws-cdk-lib@2.277.0

@@ -1,0 +1,29 @@
+{
+  "name": "freeroom",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:api": "docker compose up -d dynamodb && pnpm --filter @freeroom/api dev",
+    "dev:web": "pnpm --filter @freeroom/web dev",
+    "test": "pnpm -r --if-present test",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "deploy": "pnpm --filter @freeroom/infra run deploy"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^3.2.7"
+  }
+}
