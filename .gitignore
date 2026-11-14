@@ -8,3 +8,5 @@ cdk.out/
 *.log
 .DS_Store
 .local/
+cdk-outputs*.json
+.demo-users.*.local.json

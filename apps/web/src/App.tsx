@@ -1,11 +1,31 @@
-import { Button } from '@/components/ui/button';
+import { createBrowserRouter } from 'react-router';
+import { RequireAuth } from './auth/AuthProvider';
+import { AppShell } from './components/AppShell';
+import { RouteError } from './components/ErrorBoundary';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { RoomPage } from './pages/RoomPage';
+import { SearchPage } from './pages/SearchPage';
+import { ComingSoon, NotFoundPage } from './pages/SimplePages';
 
-export function App() {
-  return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-3xl font-bold">FreeRoom</h1>
-      <p className="mt-2 text-neutral-600">Find a free classroom on campus.</p>
-      <Button className="mt-4">Find a room</Button>
-    </main>
-  );
-}
+export const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
+  { path: '/register', element: <RegisterPage />, errorElement: <RouteError /> },
+  {
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <SearchPage /> },
+      { path: 'rooms/:roomId', element: <RoomPage /> },
+      { path: 'map', element: <ComingSoon title="Campus map" /> },
+      { path: 'me/reservations', element: <ComingSoon title="My reservations" /> },
+      { path: 'notifications', element: <ComingSoon title="Notifications" /> },
+      { path: 'demo', element: <ComingSoon title="Demo controls" /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+]);

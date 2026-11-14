@@ -1,1 +1,83 @@
+@import '@fontsource-variable/inter';
 @import 'tailwindcss';
+
+/* FreeRoom design tokens (docs/CLAUDE_DESIGN_PROMPT.md). Semantic colors are never the only signal. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brown: #7b3f00;
+  --color-brown-700: #6a3600;
+  --color-tan: #b98c66;
+  --color-sand: #e2cdb8;
+  --color-espresso: #2b1a0e;
+  --color-muted: #6b5444;
+  --color-line: #e8ddd2;
+  --color-cream: #faf6f1;
+
+  --color-plum: #6b3fa0;
+  --color-plum-50: #f3eefa;
+  --color-slate: #2f6fb0;
+  --color-slate-50: #eaf2fb;
+  --color-gold: #d4a017;
+  --color-free: #2e8b57;
+  --color-free-ink: #1e6b40; /* AA text on free-50 */
+  --color-free-50: #e9f5ee;
+  --color-amber: #c77700;
+  --color-amber-ink: #8a5300;
+
+  --shadow-card: 0 1px 2px rgb(43 26 14 / 0.06), 0 8px 24px -12px rgb(123 63 0 / 0.18);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-cream font-sans text-espresso antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-slate);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Signature horizontal gradient: brown → tan → sand → white. The dark end is held through the
+ * left half so white text placed there stays ≥ 4.5:1 (body) — keep text in the left ~50%.
+ */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(
+    90deg,
+    #7b3f00 0%,
+    #8e5420 50%,
+    #b98c66 74%,
+    #e2cdb8 88%,
+    #ffffff 100%
+  );
+}
+/* Rail keeps to the dark end so white text stays ≥ 4.5:1. */
+@utility bg-rail {
+  background-image: linear-gradient(90deg, #6a3600 0%, #7b3f00 55%, #8a4d16 100%);
+}
+/* BR-2: classes are striped (pattern), reservations solid. */
+@utility stripes-class {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 0.2) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
