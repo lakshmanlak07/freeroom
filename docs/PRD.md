@@ -354,7 +354,7 @@ Base: `https://api.<domain>/v1`. Auth: `Authorization: Bearer <Cognito ID token>
 ### Auth and profile
 | Method | Path | Description |
 |---|---|---|
-| POST | `/register` | Body `{ universityId, role, displayAlias, contact: { email?, phone? }, shareChannel }`. Requires a signed-in Cognito session with `registered=false`. Stores HMAC(universityId); returns profile **without** universityId. 409 `UID_ALREADY_REGISTERED`. |
+| POST | `/register` | Body `{ universityId, displayAlias, contact: { email?, phone? }, shareChannel }`. **No client-chosen role:** every registration is `STUDENT`; `FACULTY`/`TUTOR`/`ADMIN` are assigned only by an admin or seed data (later: SSO claims). Unknown fields (including `role`) are rejected. Requires a signed-in Cognito session with `registered=false`. Stores HMAC(universityId); returns profile **without** universityId. 409 `UID_ALREADY_REGISTERED`. |
 | GET | `/me` | Own profile (contact decrypted for self only). |
 | PATCH | `/me` | Update alias, contact, shareChannel, notificationPrefs. |
 

@@ -37,13 +37,19 @@ export const ContactSchema = z
   })
   .refine((c) => c.email || c.phone, 'email or phone required');
 
-export const RegisterRequestSchema = z.object({
-  universityId: z.string().regex(/^[0-9A-Za-z]{5,12}$/),
-  role: RoleSchema.exclude(['ADMIN']),
-  displayAlias: SafeText(40).pipe(z.string().min(1)),
-  contact: ContactSchema,
-  shareChannel: ShareChannelSchema,
-});
+/**
+ * No `role` field: clients can't pick their own role (privilege escalation via quotas).
+ * Server assigns STUDENT; FACULTY/TUTOR/ADMIN are set only by admins/seed data (later: SSO claims).
+ * `.strict()` rejects a smuggled `role` instead of silently dropping it.
+ */
+export const RegisterRequestSchema = z
+  .object({
+    universityId: z.string().regex(/^[0-9A-Za-z]{5,12}$/),
+    displayAlias: SafeText(40).pipe(z.string().min(1)),
+    contact: ContactSchema,
+    shareChannel: ShareChannelSchema,
+  })
+  .strict();
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 
 /** Own profile. Contact is present only on /me (self). Never universityId/uidHash. */
