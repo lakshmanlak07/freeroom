@@ -6,17 +6,25 @@ taps, and never get kicked out by a class you didn't know about.
 25Live is the read-only source of rooms and classes. Reservations, claims and notifications are
 FreeRoom's own, on serverless AWS.
 
+- **Live demo** (sample data, demo accounts, guided tour, resets itself every 2 hours):
+  https://d36vb3bto2ikso.cloudfront.net
+- **Production:** https://d14abz6mtvapjq.cloudfront.net (no demo data; "Try the live demo" links
+  to the demo site)
+- **Pitch kit:** [docs/PITCH.md](docs/PITCH.md) · **Submission:** [docs/SUBMISSION.md](docs/SUBMISSION.md)
+  · **Video shot list:** [docs/VIDEO.md](docs/VIDEO.md) · **Architecture:**
+  [docs/architecture.png](docs/architecture.png)
+
 > FreeRoom reservations are informal and student-run, not an official university booking. The
 > deployed demo runs on seeded UMass campus data until UMass IT grants 25Live and SSO access.
 > Switching those on is configuration, not code (DEPLOY.md).
 
-| Campus map: buildings colored by how free they are   | Room timeline: classes (striped, book icon) vs reservations |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| ![Map](docs/screenshots/map.jpg)                     | ![Timeline](docs/screenshots/timeline.jpg)                  |
-| **Class conflict → 3 alternatives, one-tap rebook**  | **My reservations: confirm window, incoming claims**        |
-| ![Notifications](docs/screenshots/notifications.jpg) | ![My reservations](docs/screenshots/my-reservations.jpg)    |
-
-![Landing](docs/screenshots/landing.jpg)
+| Campus map: buildings colored by how free they are              | Natural-language search → editable filter chips            |
+| --------------------------------------------------------------- | ---------------------------------------------------------- |
+| ![Map](docs/screenshots/map.png)                                | ![Natural-language search](docs/screenshots/nl-search.png) |
+| **Room timeline: classes (striped, book icon) vs reservations** | **Class conflict → 3 alternatives, one-tap rebook**        |
+| ![Timeline](docs/screenshots/timeline.png)                      | ![Notifications](docs/screenshots/notifications.png)       |
+| **My reservations: confirm window, incoming claims**            | **Landing**                                                |
+| ![My reservations](docs/screenshots/my-reservations.png)        | ![Landing](docs/screenshots/landing.png)                   |
 
 ## Architecture
 
@@ -28,6 +36,7 @@ flowchart LR
   GW --> API[ApiFn<br/>Hono Lambdalith]
   GW --> RV[RevealFn<br/>/me + contact reveal<br/>only kms:Decrypt]
   API --> DDB[(DynamoDB single table<br/>slot LOCKs, PITR)]
+  API -.filters only, 2 s timeout.-> BR[Bedrock<br/>Claude Haiku 4.5<br/>NL search]
   RV --> DDB
   RV --> KMS[KMS CMK<br/>contact envelope keys]
   API -.GenerateDataKey.-> KMS
@@ -37,6 +46,7 @@ flowchart LR
   SCH -->|10 min daytime| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
   SY --> DDB
   SW --> DDB
+  SCH -->|dev only, every 2 h| DR[DemoResetFn<br/>reset + re-seed demo] --> DDB
   COG[Cognito<br/>email/password, SAML-ready] -.tokens.-> U
   API & RV & SW & SY & OC --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
 ```
@@ -165,6 +175,18 @@ pnpm run deploy -- --stage prod -c alarmEmail=<you@example.com>
 The full guide (first-time bootstrap, the GitHub pipeline, secrets, SES, real 25Live, SAML) is
 [DEPLOY.md](DEPLOY.md). Operations: [RUNBOOK.md](RUNBOOK.md). Security model:
 [SECURITY.md](SECURITY.md). Pitch: [docs/PITCH.md](docs/PITCH.md).
+
+## Status
+
+| Area                                                                                             | Status                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core rules BR-1/5/6/8/9 (server-enforced, tested)                                                | ✅ Shipped. 255 automated tests + adversarial/IDOR audit ([TRACEABILITY](docs/TRACEABILITY.md))                                                                                                                                                                                                         |
+| Search, map, timeline, reserve, claims, notifications, Demo Controls                             | ✅ Shipped, live on dev and prod                                                                                                                                                                                                                                                                        |
+| Natural-language search                                                                          | ✅ Shipped. **Parser live; Bedrock pending** an account step: Anthropic's one-time use-case form in the Bedrock console. After approval it switches on with no redeploy (DEPLOY.md §6)                                                                                                                  |
+| Security (WAF, KMS, origin-verify, cdk-nag clean) and observability (dashboard, alarms, runbook) | ✅ Shipped                                                                                                                                                                                                                                                                                              |
+| CD via GitHub Actions + OIDC                                                                     | ⛔ **Blocked by account policy.** The hackathon AWS account's SCP denies `iam:CreateOpenIDConnectProvider`. The workflow is complete as committed (CI runs on GitHub; deploy jobs are opt-in with `-c githubOidc=true`). Deploys run from a maintainer machine with short-lived `aws login` credentials |
+| Region                                                                                           | us-east-2 only (the SCP denies us-east-1). The CloudFront WAF is created via a custom resource; Bedrock uses a us cross-region inference profile                                                                                                                                                        |
+| Live 25Live data, campus SAML SSO                                                                | ⏳ Configuration only, waiting on UMass IT credentials and metadata                                                                                                                                                                                                                                     |
 
 ## Roadmap (v1.1)
 

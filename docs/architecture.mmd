@@ -1,0 +1,20 @@
+flowchart LR
+  U[Browser<br/>React SPA] -->|HTTPS| CF[CloudFront<br/>+ WAF in prod]
+  CF -->|/*| S3[(S3<br/>static site, OAC)]
+  CF -->|/api/* + x-origin-verify| GW[API Gateway HTTP API<br/>Cognito JWT authorizer]
+  GW --> API[ApiFn<br/>Hono Lambdalith]
+  GW --> RV[RevealFn<br/>/me + contact reveal<br/>only kms:Decrypt]
+  API --> DDB[(DynamoDB single table<br/>slot LOCKs, PITR)]
+  API -.filters only, 2 s timeout.-> BR[Bedrock<br/>Claude Haiku 4.5<br/>NL search]
+  RV --> DDB
+  RV --> KMS[KMS CMK<br/>contact envelope keys]
+  API -.GenerateDataKey.-> KMS
+  DDB -->|Streams: EVT# inserts| OC[OnChangeFn] --> N[(in-app notifications)]
+  OC -.failures.-> DLQ[[SQS DLQ]]
+  SCH[EventBridge Scheduler] -->|every 1 min| SW[SweeperFn<br/>BR-6 auto-release<br/>+ staleness metric]
+  SCH -->|10 min daytime| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
+  SY --> DDB
+  SW --> DDB
+  SCH -->|dev only, every 2 h| DR[DemoResetFn<br/>reset + re-seed demo] --> DDB
+  COG[Cognito<br/>email/password, SAML-ready] -.tokens.-> U
+  API & RV & SW & SY & OC --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
