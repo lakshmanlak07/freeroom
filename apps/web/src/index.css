@@ -124,3 +124,81 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Fox companion (components/fox): parts animate per data-state; reduced motion freezes it all. */
+.fox-sprite g {
+  transform-box: fill-box;
+}
+.fox-tail {
+  transform-origin: 90% 85%;
+}
+.fox-legs {
+  transform-origin: 50% 0;
+}
+.fox-eyes {
+  transform-origin: center;
+  animation: fox-blink 4s infinite;
+}
+.fox[data-state='hop'] .fox-bob,
+.fox[data-state='wander'] .fox-bob {
+  animation: fox-hop 0.42s ease-in-out infinite;
+}
+.fox[data-state='run'] .fox-bob {
+  animation: fox-hop 0.26s ease-in-out infinite;
+}
+.fox[data-state='run'] .fox-legs-front {
+  animation: fox-leg 0.26s ease-in-out infinite;
+}
+.fox[data-state='run'] .fox-legs-back {
+  animation: fox-leg 0.26s ease-in-out infinite reverse;
+}
+.fox[data-state='idle'] .fox-bob {
+  transform: translateY(2px); /* sit */
+}
+.fox[data-state='idle'] .fox-legs-front {
+  transform: scaleY(0.6);
+}
+.fox[data-state='idle'] .fox-tail {
+  animation: fox-swish 1.6s ease-in-out infinite;
+}
+.fox[data-state='celebrate'] .fox-bob {
+  transform-origin: 50% 90%;
+  animation: fox-celebrate 0.6s ease-in-out infinite;
+}
+@keyframes fox-hop {
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@keyframes fox-leg {
+  50% {
+    transform: rotate(20deg);
+  }
+}
+@keyframes fox-swish {
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes fox-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes fox-celebrate {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  40% {
+    transform: translateY(-14px) rotate(-8deg);
+  }
+  70% {
+    transform: translateY(-6px) rotate(8deg);
+  }
+}

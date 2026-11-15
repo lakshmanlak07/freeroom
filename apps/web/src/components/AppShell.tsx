@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
 import { GuidedTour } from './GuidedTour';
 import { ThemeToggle } from './ThemeToggle';
+import { FoxCompanion, FoxToggle } from './fox/FoxCompanion';
 
 export const ROLE_LABEL: Record<Role, string> = {
   STUDENT: 'Student',
@@ -111,8 +112,9 @@ export function AppShell() {
             <p className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs">
               {ROLE_LABEL[me.role]}
             </p>
-            <div className="mt-3">
+            <div className="mt-3 space-y-1">
               <ThemeToggle onRail />
+              <FoxToggle onRail />
             </div>
             <button
               onClick={() => void signOut()}
@@ -135,6 +137,7 @@ export function AppShell() {
             <section aria-label="Account" className="space-y-3 px-4 pb-6 md:hidden">
               <h2 className="text-sm font-semibold text-muted">Appearance</h2>
               <ThemeToggle />
+              <FoxToggle />
               <button
                 type="button"
                 onClick={() => void signOut()}
@@ -146,6 +149,7 @@ export function AppShell() {
           )}
         </main>
         {config.demoMode && <GuidedTour />}
+        <FoxCompanion />
       </div>
 
       <nav

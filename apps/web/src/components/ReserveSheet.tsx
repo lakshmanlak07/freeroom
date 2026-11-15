@@ -14,6 +14,7 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { campusLocalToUtc, fmtDay, fmtRange, fmtTime } from '@/lib/time';
 import { PeopleInput } from './PeopleInput';
+import { celebrate } from './fox/FoxCompanion';
 import { useToast } from './Toast';
 import type { ScheduleItem } from './TimelineBlock';
 import { Button, inputClass } from './ui/button';
@@ -139,6 +140,7 @@ export function ReserveSheet({
       ),
     onSuccess: (r) => {
       onChanged();
+      celebrate();
       toast({
         tone: 'success',
         title: `Reserved ${room.name}`,
