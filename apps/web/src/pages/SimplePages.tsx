@@ -10,7 +10,7 @@ export function NotFoundPage() {
         title="Page not found"
         body="That link doesn’t lead to a room — or anywhere else."
         action={
-          <Link to="/" className="font-semibold text-brown underline underline-offset-2">
+          <Link to="/" className="font-semibold text-brown-ink underline underline-offset-2">
             Find a free room
           </Link>
         }

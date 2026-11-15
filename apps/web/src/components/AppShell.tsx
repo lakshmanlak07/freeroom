@@ -17,6 +17,7 @@ import { useConfig } from '@/config';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
 import { GuidedTour } from './GuidedTour';
+import { ThemeToggle } from './ThemeToggle';
 
 export const ROLE_LABEL: Record<Role, string> = {
   STUDENT: 'Student',
@@ -50,7 +51,7 @@ function useNav(): NavItem[] {
 function Badge({ n }: { n?: number }) {
   if (!n) return null;
   return (
-    <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-gold px-1.5 text-[11px] font-bold text-espresso tabular">
+    <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-gold px-1.5 text-[11px] font-bold text-[#2b1a0e] tabular">
       {n > 9 ? '9+' : n}
       <span className="sr-only"> unread</span>
     </span>
@@ -71,7 +72,7 @@ export function AppShell() {
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
       <a
         href="#main"
-        className="sr-only z-50 rounded-xl bg-white px-4 py-2 font-semibold text-espresso shadow-card focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        className="sr-only z-50 rounded-xl bg-surface px-4 py-2 font-semibold text-espresso shadow-card focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
         Skip to content
       </a>
@@ -110,6 +111,9 @@ export function AppShell() {
             <p className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs">
               {ROLE_LABEL[me.role]}
             </p>
+            <div className="mt-3">
+              <ThemeToggle onRail />
+            </div>
             <button
               onClick={() => void signOut()}
               className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-white/85 hover:bg-white/10"
@@ -126,13 +130,27 @@ export function AppShell() {
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
+          {/* Phones have no sidebar: account + appearance live at the end of My Reservations. */}
+          {me && location.pathname === '/me' && (
+            <section aria-label="Account" className="space-y-3 px-4 pb-6 md:hidden">
+              <h2 className="text-sm font-semibold text-muted">Appearance</h2>
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-semibold"
+              >
+                <LogOut className="size-4" aria-hidden /> Sign out ({me.displayAlias})
+              </button>
+            </section>
+          )}
         </main>
         {config.demoMode && <GuidedTour />}
       </div>
 
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="flex">
           {nav.map(({ to, label, Icon, badge }) => (
@@ -143,7 +161,7 @@ export function AppShell() {
                 className={({ isActive }) =>
                   cn(
                     'relative flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted',
-                    isActive && 'text-brown',
+                    isActive && 'text-brown-ink',
                   )
                 }
               >
@@ -177,10 +195,10 @@ function TopBar() {
   }, [onSearch, params]);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white/90 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface/90 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur md:px-6">
       <Link
         to="/"
-        className="flex items-center gap-1.5 font-bold text-brown md:hidden"
+        className="flex items-center gap-1.5 font-bold text-brown-ink md:hidden"
         aria-label="FreeRoom home"
       >
         <DoorOpen className="size-6" aria-hidden />

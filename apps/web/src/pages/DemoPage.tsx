@@ -91,7 +91,7 @@ export function DemoPage() {
         </p>
       </section>
       <div className="grid gap-6 px-4 py-6 md:px-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-4 rounded-2xl border border-line bg-white p-4 shadow-card">
+        <div className="space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
           <h2 className="font-semibold">1. Pick a reservation</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-medium">

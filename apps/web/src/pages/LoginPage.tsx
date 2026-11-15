@@ -92,7 +92,7 @@ export function LoginPage() {
         </ul>
       </BrandPanel>
 
-      <main className="flex items-center justify-center bg-white p-6">
+      <main className="flex items-center justify-center bg-surface p-6">
         <div className="w-full max-w-sm">
           <h2 className="text-2xl font-bold">
             {step === 'signIn'
@@ -107,7 +107,7 @@ export function LoginPage() {
               aria-labelledby="demo-h"
               className="mt-6 rounded-2xl border-2 border-brown bg-cream p-5 shadow-card"
             >
-              <h3 id="demo-h" className="text-lg font-bold text-brown">
+              <h3 id="demo-h" className="text-lg font-bold text-brown-ink">
                 Try the live demo
               </h3>
               <p className="mt-1 text-sm text-espresso">
@@ -215,7 +215,7 @@ export function LoginPage() {
               </Button>
               <button
                 type="button"
-                className="w-full text-sm font-medium text-brown underline-offset-2 hover:underline"
+                className="w-full text-sm font-medium text-brown-ink underline-offset-2 hover:underline"
                 onClick={() => setStep(step === 'signIn' ? 'signUp' : 'signIn')}
               >
                 {step === 'signIn' ? 'New here? Create an account' : 'Have an account? Sign in'}

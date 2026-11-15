@@ -32,7 +32,7 @@ export function StatusChip({
       );
     case 'RESERVED_CLAIMABLE':
       return (
-        <span className={cn(base, 'border border-slate bg-white text-slate', className)}>
+        <span className={cn(base, 'border border-slate bg-surface text-slate', className)}>
           <UserRound className="size-3.5" aria-hidden />
           Reserved · Claimable
         </span>

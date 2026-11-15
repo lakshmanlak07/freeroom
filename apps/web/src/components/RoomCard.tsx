@@ -9,7 +9,7 @@ export function RoomCard({ room }: { room: RoomWithStatus }) {
     <li>
       <Link
         to={`/rooms/${encodeURIComponent(room.roomId)}`}
-        className="group flex h-full flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:border-tan"
+        className="group flex h-full flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:border-tan"
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">

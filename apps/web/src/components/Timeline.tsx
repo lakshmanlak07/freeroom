@@ -127,7 +127,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
   return (
     <div
       ref={scrollRef}
-      className="overflow-x-auto rounded-2xl border border-line bg-white shadow-card"
+      className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card"
     >
       <div className="relative min-w-[900px] px-4 pt-2 pb-7">
         {/* hour labels */}
@@ -183,7 +183,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
           {/* past */}
           {pastPct > 0 && (
             <div
-              className="absolute inset-y-0 left-0 rounded-l-xl bg-[repeating-linear-gradient(135deg,#e8ddd2_0_2px,transparent_2px_8px)] bg-cream/80"
+              className="absolute inset-y-0 left-0 rounded-l-xl bg-[repeating-linear-gradient(135deg,var(--color-line)_0_2px,transparent_2px_8px)] bg-cream/80"
               style={{ width: `${pastPct}%` }}
               aria-hidden
             />
@@ -191,7 +191,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
           {/* hover affordance */}
           {hover !== null && !drag && (
             <div
-              className="pointer-events-none absolute top-3 bottom-3 grid place-items-center rounded-lg border-2 border-dashed border-free bg-white/70 text-[11px] font-semibold text-free-ink"
+              className="pointer-events-none absolute top-3 bottom-3 grid place-items-center rounded-lg border-2 border-dashed border-free bg-surface/70 text-[11px] font-semibold text-free-ink"
               style={{ left: `${pct(slotStart(hover))}%`, width: `${(100 / grid.slots) * 4}%` }}
               aria-hidden
             >
@@ -222,7 +222,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
                 width: `${pct(slotStart(sel[1] + 1)) - pct(slotStart(sel[0]))}%`,
               }}
             >
-              <span className="absolute -top-6 left-0 rounded-md bg-free-ink px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white tabular">
+              <span className="absolute -top-6 left-0 rounded-md bg-free-ink px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-on-accent tabular">
                 {fmtRange(new Date(slotStart(sel[0])), new Date(slotStart(sel[1] + 1)))}
               </span>
             </div>
@@ -233,7 +233,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
               style={{ left: `${nowPct}%` }}
               aria-hidden
             >
-              <span className="absolute -bottom-4 -translate-x-1/2 rounded bg-amber-ink px-1 text-[10px] font-bold text-white">
+              <span className="absolute -bottom-4 -translate-x-1/2 rounded bg-amber-ink px-1 text-[10px] font-bold text-on-accent">
                 NOW
               </span>
             </div>
@@ -272,7 +272,7 @@ export function TextView({ day, items, now, onSelect }: Omit<Props, 'onRequest' 
 
   return (
     <ol
-      className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white shadow-card"
+      className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
       aria-label="Schedule (text view)"
     >
       {entries.map((e) => (

@@ -3,7 +3,7 @@
  * Signs in with Playwright, then runs Lighthouse user-flow navigations IN THAT SAME TAB (via
  * puppeteer-core over CDP), so the audited pages are the signed-in ones — the summary prints
  * each final URL to prove it. BASE_URL / E2E_USERS as for the smoke suite.
- * Usage: BASE_URL=… pnpm --filter @freeroom/e2e lighthouse
+ * Usage: BASE_URL=… [LH_THEME=dark] pnpm --filter @freeroom/e2e lighthouse
  */
 import { chromium } from '@playwright/test';
 import { startFlow } from 'lighthouse';
@@ -23,6 +23,10 @@ const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'l
   viewport: { width: 1350, height: 940 },
   args: [`--remote-debugging-port=${PORT}`],
 });
+// LH_THEME=dark audits the dark palette (contrast is the part that changes).
+if (process.env.LH_THEME === 'dark' || process.env.LH_THEME === 'light') {
+  await ctx.addInitScript((t) => localStorage.setItem('freeroom.theme', t), process.env.LH_THEME);
+}
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 await login(page, OWNER);
 await page.goto('/');

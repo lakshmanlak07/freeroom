@@ -74,7 +74,7 @@ export function RegisterPage() {
           fingerprint of it. Others see your alias, never your name or contact.
         </p>
       </BrandPanel>
-      <main className="flex items-center justify-center bg-white p-6">
+      <main className="flex items-center justify-center bg-surface p-6">
         <form className="w-full max-w-md space-y-4" onSubmit={submit} noValidate>
           <h2 className="text-2xl font-bold">Set up your profile</h2>
           <label className="block text-sm font-medium">

@@ -93,7 +93,7 @@ export const TimelineBlock = forwardRef<HTMLButtonElement, Props>(function Timel
           }
           style={{ left: `${left}%`, width: `${width}%` }}
           className={cn(
-            'absolute top-3 bottom-3 flex items-center gap-1.5 overflow-hidden rounded-lg text-left text-xs font-semibold text-white shadow-sm',
+            'absolute top-3 bottom-3 flex items-center gap-1.5 overflow-hidden rounded-lg text-left text-xs font-semibold text-on-accent shadow-sm',
             narrow ? 'flex-col justify-center gap-0.5 px-1' : 'px-2',
             isClass ? 'bg-plum stripes-class' : 'bg-slate',
             mine && 'outline-2 outline-offset-1 outline-gold',
@@ -131,7 +131,7 @@ export const TimelineBlock = forwardRef<HTMLButtonElement, Props>(function Timel
           onCloseAutoFocus={(e) => e.preventDefault()}
           onMouseEnter={show}
           onMouseLeave={hide}
-          className="z-50 w-72 rounded-2xl border border-line bg-white p-4 text-sm shadow-card"
+          className="z-50 w-72 rounded-2xl border border-line bg-surface p-4 text-sm shadow-card"
         >
           {isClass ? (
             <ClassDetails item={item} />

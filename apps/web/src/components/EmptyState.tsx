@@ -18,12 +18,12 @@ export function EmptyState({
   return (
     <div
       role={tone === 'error' ? 'alert' : undefined}
-      className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-white px-6 py-12 text-center"
+      className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center"
     >
       <span
         className={cn(
           'grid size-12 place-items-center rounded-full',
-          tone === 'error' ? 'bg-amber/10 text-amber-ink' : 'bg-cream text-brown',
+          tone === 'error' ? 'bg-amber/10 text-amber-ink' : 'bg-cream text-brown-ink',
         )}
       >
         <Icon className="size-6" aria-hidden />

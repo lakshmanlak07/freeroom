@@ -63,8 +63,8 @@ export function ClaimDialog({
   return (
     <Dialog.Root open={!!reservation} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-espresso/30" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-surface p-6 shadow-2xl">
           <div className="flex items-start justify-between">
             <Dialog.Title className="text-lg font-semibold">Request this room</Dialog.Title>
             <Dialog.Close className="rounded-lg p-1 text-muted hover:bg-cream" aria-label="Close">

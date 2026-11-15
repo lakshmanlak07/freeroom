@@ -9,7 +9,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-brown text-white hover:bg-brown-700',
-        outline: 'border border-line bg-white text-espresso hover:bg-cream',
+        outline: 'border border-line bg-surface text-espresso hover:bg-cream',
         ghost: 'text-espresso hover:bg-cream',
         light: 'bg-white/15 text-white hover:bg-white/25',
       },
@@ -35,4 +35,4 @@ export function Button({
 
 export const inputClass =
   // 16px on phones so iOS doesn't zoom on focus.
-  'h-11 w-full min-w-0 rounded-xl border border-line bg-white px-3 text-base text-espresso placeholder:text-muted/70 md:h-10 md:text-sm';
+  'h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-espresso placeholder:text-muted/70 md:h-10 md:text-sm';

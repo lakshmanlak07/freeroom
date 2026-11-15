@@ -92,7 +92,7 @@ export function SearchChips({ sp, set, buildings, onExample }: Props) {
             key={ex}
             type="button"
             onClick={() => onExample(ex)}
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-espresso hover:border-brown hover:bg-cream"
+            className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-espresso hover:border-brown hover:bg-cream"
           >
             {ex}
           </button>
@@ -115,7 +115,7 @@ export function SearchChips({ sp, set, buildings, onExample }: Props) {
       {chips.map((c) => (
         <span
           key={c.key}
-          className="inline-flex items-center gap-1 rounded-full border border-brown/30 bg-white py-1 pr-1 pl-3 text-sm font-medium text-espresso"
+          className="inline-flex items-center gap-1 rounded-full border border-brown/30 bg-surface py-1 pr-1 pl-3 text-sm font-medium text-espresso"
         >
           {c.key === 'cap' && editing ? (
             <span className="inline-flex items-center gap-1">

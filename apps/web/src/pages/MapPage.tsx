@@ -14,7 +14,8 @@ import { EmptyState, Skeleton } from '@/components/EmptyState';
 import { RoomCard } from '@/components/RoomCard';
 import { Button } from '@/components/ui/button';
 import { useConfig } from '@/config';
-import { mapStyleFor, redactKey } from '@/lib/mapStyle';
+import { mapStyleFor, redactKey, type ColorScheme } from '@/lib/mapStyle';
+import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
 maplibregl.setWorkerUrl(workerUrl);
@@ -24,10 +25,10 @@ const STYLE_TIMEOUT_MS = 8000;
 /** Color AND text label (the % is printed on the marker) — never color alone. */
 export const tier = (pct: number) =>
   pct >= 60
-    ? { label: 'Mostly free', color: '#1e6b45' } // white text ≥ 4.5:1 (WCAG AA) on every tier
+    ? { label: 'Mostly free', color: '#1e6b45', ink: 'text-free-ink' } // white text ≥ 4.5:1 (WCAG AA) on every tier
     : pct >= 30
-      ? { label: 'Some free', color: '#8a5300' }
-      : { label: 'Busy', color: '#8b2c2c' };
+      ? { label: 'Some free', color: '#8a5300', ink: 'text-amber-ink' }
+      : { label: 'Busy', color: '#8b2c2c', ink: 'text-busy-ink' }; // ink: readable text in both themes
 
 export default function MapPage() {
   const { api } = useAuth();
@@ -36,6 +37,9 @@ export default function MapPage() {
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const scheme: ColorScheme = useTheme().theme === 'dark' ? 'Dark' : 'Light';
+  const schemeRef = useRef(scheme);
+  schemeRef.current = scheme;
   const [showList, setShowList] = useState(false);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -68,7 +72,10 @@ export default function MapPage() {
     setFailed(false);
     const m = new maplibregl.Map({
       container: el,
-      style: mapStyleFor(config, { mocks: import.meta.env.VITE_USE_MOCKS === 'true' }),
+      style: mapStyleFor(config, {
+        mocks: import.meta.env.VITE_USE_MOCKS === 'true',
+        scheme: schemeRef.current,
+      }),
       center: CENTER,
       zoom: 15.4,
       attributionControl: { compact: true },
@@ -101,6 +108,20 @@ export default function MapPage() {
     };
   }, [config, attempt]);
 
+  // Theme switch: swap the basemap live (color-scheme=Dark), then re-add markers on the new style.
+  const [styleGen, setStyleGen] = useState(0);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    const style = mapStyleFor(config, {
+      mocks: import.meta.env.VITE_USE_MOCKS === 'true',
+      scheme,
+    });
+    if (typeof style !== 'string') return; // OSM fallback has no dark variant
+    m.once('style.load', () => setStyleGen((g) => g + 1));
+    m.setStyle(style);
+  }, [scheme]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Markers are real <button>s: focusable, labelled, keyboard-activatable. Added once the style
   // has loaded, re-added when the data or selection changes.
   useEffect(() => {
@@ -121,7 +142,7 @@ export default function MapPage() {
       el.onclick = () => select(b);
       return new maplibregl.Marker({ element: el }).setLngLat([b.lng, b.lat]).addTo(map.current!);
     });
-  }, [buildings.data, selected, ready]);
+  }, [buildings.data, selected, ready, styleGen]);
 
   const select = (b: Building) => {
     setSelected(b.buildingId);
@@ -166,7 +187,7 @@ export default function MapPage() {
           </Button>
         </div>
         <ul
-          className="absolute bottom-6 left-3 space-y-1 rounded-xl bg-white/95 p-3 text-xs shadow-card"
+          className="absolute bottom-6 left-3 space-y-1 rounded-xl bg-surface/95 p-3 text-xs shadow-card"
           aria-label="Legend"
         >
           {[80, 45, 10].map((p) => (
@@ -183,7 +204,7 @@ export default function MapPage() {
         {geoError && (
           <p
             role="status"
-            className="absolute top-14 left-3 rounded-lg bg-white px-3 py-2 text-xs text-amber-ink shadow-card"
+            className="absolute top-14 left-3 rounded-lg bg-surface px-3 py-2 text-xs text-amber-ink shadow-card"
           >
             {geoError}
           </p>
@@ -191,7 +212,7 @@ export default function MapPage() {
         {failed && (
           <div
             role="alert"
-            className="absolute inset-x-3 top-1/3 mx-auto max-w-sm rounded-2xl border border-line bg-white p-4 text-center shadow-card"
+            className="absolute inset-x-3 top-1/3 mx-auto max-w-sm rounded-2xl border border-line bg-surface p-4 text-center shadow-card"
           >
             <TriangleAlert className="mx-auto size-6 text-amber-ink" aria-hidden />
             <p className="mt-2 font-semibold">The map didn’t load</p>
@@ -220,13 +241,10 @@ export default function MapPage() {
                     type="button"
                     onClick={() => select(b)}
                     aria-pressed={selected === b.buildingId}
-                    className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-left text-sm shadow-card"
+                    className="flex w-full items-center justify-between rounded-xl bg-surface px-3 py-2 text-left text-sm shadow-card"
                   >
                     <span className="min-w-0 truncate">{b.name}</span>
-                    <span
-                      className="shrink-0 font-semibold tabular"
-                      style={{ color: tier(b.freePct).color }}
-                    >
+                    <span className={cn('shrink-0 font-semibold tabular', tier(b.freePct).ink)}>
                       {b.freePct}% free
                     </span>
                   </button>

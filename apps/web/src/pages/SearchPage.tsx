@@ -134,7 +134,7 @@ export function SearchPage() {
         </Button>
         {showFilters && (
           <div
-            className="fixed inset-0 z-40 bg-espresso/40 md:hidden"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setShowFilters(false)}
             aria-hidden
           />
@@ -144,7 +144,7 @@ export function SearchPage() {
           id="filters"
           aria-label="Filters"
           className={cn(
-            'gap-4 border border-line bg-white p-4 shadow-card md:static md:z-auto md:grid md:max-h-none md:grid-cols-2 md:overflow-visible md:rounded-2xl md:pb-4 xl:grid-cols-4 [&>*]:min-w-0',
+            'gap-4 border border-line bg-surface p-4 shadow-card md:static md:z-auto md:grid md:max-h-none md:grid-cols-2 md:overflow-visible md:rounded-2xl md:pb-4 xl:grid-cols-4 [&>*]:min-w-0',
             showFilters
               ? 'fixed inset-x-0 bottom-0 z-50 m-0 grid max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(1rem+env(safe-area-inset-bottom))]'
               : 'hidden',
@@ -216,7 +216,7 @@ export function SearchPage() {
               >
                 <span
                   className={cn(
-                    'absolute top-0.5 size-5 rounded-full bg-white shadow transition',
+                    'absolute top-0.5 size-5 rounded-full bg-surface shadow transition',
                     get('freeNow') === '1' ? 'left-5.5' : 'left-0.5',
                   )}
                 />
@@ -246,7 +246,7 @@ export function SearchPage() {
                       'inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition',
                       on
                         ? 'border-brown bg-brown text-white'
-                        : 'border-line bg-white text-espresso hover:bg-cream',
+                        : 'border-line bg-surface text-espresso hover:bg-cream',
                     )}
                   >
                     <Icon className="size-4" aria-hidden /> {label}

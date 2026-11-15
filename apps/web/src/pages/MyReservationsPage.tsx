@@ -51,7 +51,7 @@ export function MyReservationsPage() {
         <div
           role="tablist"
           aria-label="Reservations"
-          className="inline-flex rounded-xl border border-line bg-white p-0.5"
+          className="inline-flex rounded-xl border border-line bg-surface p-0.5"
         >
           {(['upcoming', 'past'] as const).map((t) => (
             <button
@@ -108,7 +108,7 @@ function ReservationList({
         title={scope === 'upcoming' ? 'No upcoming reservations' : 'Nothing here yet'}
         action={
           scope === 'upcoming' ? (
-            <Link className="font-semibold text-brown underline" to="/">
+            <Link className="font-semibold text-brown-ink underline" to="/">
               Find a free room
             </Link>
           ) : undefined
@@ -156,7 +156,7 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
   const active = r.status === 'PENDING_CONFIRMATION' || r.status === 'CONFIRMED';
 
   return (
-    <li className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card">
+    <li className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-card">
       <div className="min-w-[16rem] flex-1">
         <Link
           to={`/rooms/${encodeURIComponent(r.roomId)}?date=${campusDay(start)}`}
@@ -231,7 +231,7 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
 
 function ClaimCard({ c, children }: { c: Claim; children?: React.ReactNode }) {
   return (
-    <li className="rounded-2xl border border-line bg-white p-4 shadow-card">
+    <li className="rounded-2xl border border-line bg-surface p-4 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold">
           {c.requesterAlias} → {c.ownerAlias}
@@ -478,8 +478,8 @@ function HistoryDrawer({
   return (
     <Dialog.Root open={!!reservation} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-espresso/30" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
+        <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto bg-surface p-6 shadow-2xl">
           <div className="flex items-start justify-between">
             <Dialog.Title className="text-xl font-semibold">History</Dialog.Title>
             <Dialog.Close className="rounded-lg p-1 text-muted hover:bg-cream" aria-label="Close">

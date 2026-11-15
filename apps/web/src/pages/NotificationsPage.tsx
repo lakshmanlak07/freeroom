@@ -62,7 +62,7 @@ function NotificationCard({ n, compact }: { n: Notification; compact?: boolean }
   return (
     <li
       className={cn(
-        'rounded-2xl border bg-white p-4',
+        'rounded-2xl border bg-surface p-4',
         n.read ? 'border-line' : 'border-l-4 border-gold shadow-card',
         conflict && !compact && 'border-amber',
       )}
@@ -171,7 +171,7 @@ export function NotificationBell() {
       >
         <Bell className="size-5" aria-hidden />
         {!!unread && (
-          <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-espresso">
+          <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-[#2b1a0e]">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -193,7 +193,7 @@ export function NotificationBell() {
           <Popover.Close asChild>
             <Link
               to="/notifications"
-              className="mt-2 block rounded-xl py-2 text-center text-sm font-semibold text-brown hover:bg-white"
+              className="mt-2 block rounded-xl py-2 text-center text-sm font-semibold text-brown-ink hover:bg-surface"
             >
               View all
             </Link>

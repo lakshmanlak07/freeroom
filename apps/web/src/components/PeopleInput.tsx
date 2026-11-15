@@ -41,7 +41,7 @@ interface Props {
 }
 
 const stepBtn =
-  'grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-white text-espresso hover:bg-cream disabled:opacity-40';
+  'grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-espresso hover:bg-cream disabled:opacity-40';
 
 export function PeopleInput({
   id,
@@ -120,7 +120,7 @@ export function PeopleInput({
           onBlur={() => commit(draft)}
           onKeyDown={onKeyDown}
           className={cn(
-            'h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-center text-base text-espresso tabular placeholder:text-muted/70',
+            'h-11 w-full min-w-0 rounded-xl border bg-surface px-3 text-center text-base text-espresso tabular placeholder:text-muted/70',
             error ? 'border-amber-ink' : 'border-line',
           )}
         />

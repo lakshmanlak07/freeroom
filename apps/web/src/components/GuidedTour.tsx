@@ -75,10 +75,10 @@ export function GuidedTour() {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-espresso/20" />
-        <Dialog.Content className="fixed right-4 bottom-4 left-4 z-50 rounded-2xl border border-line bg-white p-5 shadow-card sm:left-auto sm:w-[26rem]">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Dialog.Content className="fixed right-4 bottom-4 left-4 z-50 rounded-2xl border border-line bg-surface p-5 shadow-card sm:left-auto sm:w-[26rem]">
           <div className="flex items-start justify-between gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cream text-brown">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cream text-brown-ink">
               <step.Icon className="size-5" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">

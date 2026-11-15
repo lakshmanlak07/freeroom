@@ -50,7 +50,10 @@ export function LandingPage() {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               to="/login"
-              className={cn(buttonVariants({ size: 'lg' }), 'bg-white text-brown hover:bg-cream')}
+              className={cn(
+                buttonVariants({ size: 'lg' }),
+                'bg-surface text-brown-ink hover:bg-cream',
+              )}
             >
               Sign in
             </Link>
@@ -90,17 +93,17 @@ export function LandingPage() {
       <main className="mx-auto -mt-24 max-w-5xl px-6 pb-16">
         <div
           aria-hidden
-          className="mx-auto mb-10 max-w-3xl rounded-2xl border border-line bg-white p-4 shadow-card"
+          className="mx-auto mb-10 max-w-3xl rounded-2xl border border-line bg-surface p-4 shadow-card"
         >
           <p className="mb-2 text-xs font-semibold text-muted">LGRT 0101 · today</p>
           <div className="relative h-14 rounded-xl bg-free-50">
-            <div className="stripes-class absolute inset-y-2 left-[8%] flex w-[16%] items-center gap-1 rounded-lg bg-plum px-2 text-[11px] font-semibold text-white">
+            <div className="stripes-class absolute inset-y-2 left-[8%] flex w-[16%] items-center gap-1 rounded-lg bg-plum px-2 text-[11px] font-semibold text-on-accent">
               <BookOpen className="size-3" /> CS 220
             </div>
-            <div className="absolute inset-y-2 left-[30%] flex w-[14%] items-center gap-1 rounded-lg bg-slate px-2 text-[11px] font-semibold text-white">
+            <div className="absolute inset-y-2 left-[30%] flex w-[14%] items-center gap-1 rounded-lg bg-slate px-2 text-[11px] font-semibold text-on-accent">
               <UserRound className="size-3" /> Night Owl
             </div>
-            <div className="stripes-class absolute inset-y-2 left-[56%] flex w-[16%] items-center gap-1 rounded-lg bg-plum px-2 text-[11px] font-semibold text-white">
+            <div className="stripes-class absolute inset-y-2 left-[56%] flex w-[16%] items-center gap-1 rounded-lg bg-plum px-2 text-[11px] font-semibold text-on-accent">
               <BookOpen className="size-3" /> MATH 233
             </div>
             <div className="absolute inset-y-2 left-[76%] grid w-[18%] place-items-center rounded-lg border-2 border-dashed border-free text-[11px] font-semibold text-free-ink">
@@ -110,8 +113,8 @@ export function LandingPage() {
         </div>
         <ul className="grid gap-4 md:grid-cols-3">
           {FEATURES.map(({ Icon, title, body }) => (
-            <li key={title} className="rounded-2xl border border-line bg-white p-6 shadow-card">
-              <span className="grid size-11 place-items-center rounded-xl bg-cream text-brown">
+            <li key={title} className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+              <span className="grid size-11 place-items-center rounded-xl bg-cream text-brown-ink">
                 <Icon className="size-6" aria-hidden />
               </span>
               <h2 className="mt-4 text-xl font-bold">{title}</h2>

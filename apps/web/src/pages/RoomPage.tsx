@@ -138,7 +138,7 @@ export function RoomPage() {
           title="Room not found"
           body="It may have been removed from the 25Live catalog."
           action={
-            <Link className="font-semibold text-brown underline" to="/">
+            <Link className="font-semibold text-brown-ink underline" to="/">
               Back to search
             </Link>
           }
@@ -175,7 +175,7 @@ export function RoomPage() {
 
       <div className="space-y-5 px-4 py-6 md:px-8">
         {room.data && (
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
             {day === today && schedule.data && <StatusChip {...liveStatus(items, now, to)} />}
             <span className="inline-flex items-center gap-1 text-sm text-muted tabular">
               <Users className="size-4" aria-hidden /> {room.data.capacity} seats
@@ -228,7 +228,7 @@ export function RoomPage() {
           <span className="ml-1 text-sm font-medium">{fmtDay(day)}</span>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
             <div
-              className="flex flex-1 rounded-xl border border-line bg-white p-0.5 sm:flex-none"
+              className="flex flex-1 rounded-xl border border-line bg-surface p-0.5 sm:flex-none"
               role="group"
               aria-label="View"
             >
@@ -329,13 +329,13 @@ function Legend() {
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted" aria-label="Legend">
       <li className="inline-flex items-center gap-1.5">
-        <span className="stripes-class grid size-4 place-items-center rounded bg-plum text-white">
+        <span className="stripes-class grid size-4 place-items-center rounded bg-plum text-on-accent">
           <BookOpen className="size-2.5" aria-hidden />
         </span>
         Class (25Live)
       </li>
       <li className="inline-flex items-center gap-1.5">
-        <span className="grid size-4 place-items-center rounded bg-slate text-white">
+        <span className="grid size-4 place-items-center rounded bg-slate text-on-accent">
           <UserRound className="size-2.5" aria-hidden />
         </span>
         Reservation
