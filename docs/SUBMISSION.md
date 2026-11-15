@@ -55,6 +55,13 @@ bumped by a class you didn't know about.
   Contact details are revealed only after the holder approves, and only the one channel they
   chose.
 - **Admin demo controls:** inject a surprise class, fast-forward to a cutoff, reset the demo.
+- **Built for the phone in your hand:** bottom tab bar, bottom-sheet booking and filters, tap a
+  start then an end on the timeline, 44 px targets, no sideways scrolling from 360 px up.
+- **Light, Dark or System theme**, applied before the first paint, including a dark basemap.
+- **A fox that keeps you company** on desktop: it follows your cursor, naps when you stop, and
+  celebrates when a booking goes through (static with reduced motion, off by default on touch).
+- **The landing page proves it's live:** "47 of 80 rooms free right now on campus", straight from
+  the API.
 
 ## How we built it
 
@@ -68,13 +75,16 @@ Fully serverless on AWS, one CDK stack per stage, TypeScript end to end (strict,
 | **Amazon EventBridge Scheduler** | The every-minute sweeper (4-hour cutoff, staleness metric), the 25Live sync, and the dev demo's 2-hourly self-reset. |
 | **Amazon Cognito** | Email/password with University-ID registration and roles via a pre-token Lambda. SAML-ready for campus SSO. |
 | **AWS KMS + Secrets Manager** | Envelope encryption of contact info (encryption context = user); an HMAC pepper so University IDs are never stored. |
-| **Amazon Location Service** | The campus map, with an API key restricted to map reads from our origin. |
-| **Amazon Bedrock** (Claude Haiku 4.5, cross-region inference profile) | Natural-language search. The model can only fill in the filter object (one forced tool, zod-validated); a deterministic parser takes over on any error. |
+| **Amazon Location Service** (Maps API v2) | The campus basemap (Standard style, Light and Dark). No map resource: an API key limited to `geo-maps:GetTile`/`GetStaticMap` on the AWS-provided basemap, from our origin only. |
+| **Amazon Bedrock** (Claude Haiku 4.5, cross-region inference profile) | Natural-language search. The model can only fill in the filter object (one forced tool, zod-validated); a deterministic parser takes over on any error. The account is still waiting on Anthropic's one-time Bedrock use-case approval, so today the **smart parser** serves live queries (labelled "Smart search"); Bedrock switches on with no redeploy (labelled "Understood by AI"). [CHECK before submitting] |
 | **Amazon CloudWatch + SNS** | JSON logs with correlation IDs that flow from API to DynamoDB event to notifier, EMF business metrics, a dashboard, and alarms emailed via SNS. |
 
-Quality: 255 automated tests (domain rules, integration on DynamoDB Local, a 50-way concurrency
-test, adversarial/IDOR tests, infra assertions), Playwright smoke + axe accessibility checks,
-Lighthouse accessibility 100, and cdk-nag (AwsSolutions) clean.
+Quality: 283 automated tests (domain rules, integration on DynamoDB Local, a 50-way concurrency
+test, adversarial/IDOR tests, sync/sweeper crash-recovery tests, infra assertions) and 48
+Playwright tests (golden path on desktop, iPhone 14 and Pixel 7 profiles; axe in light and dark;
+mobile layouts at 360/390/430/844 px). Lighthouse accessibility 100; mobile performance 93–96 on
+the landing and search pages. cdk-nag (AwsSolutions) clean. A whole-repo audit
+(`docs/AUDIT.md`) found no Critical issues; every High was fixed with a test.
 
 ## Challenges we ran into
 
@@ -92,6 +102,12 @@ Lighthouse accessibility 100, and cdk-nag (AwsSolutions) clean.
   directly. The same policy denies creating a GitHub OIDC provider, so our complete GitHub
   Actions deploy pipeline is opt-in until it runs in an unrestricted account. Bedrock goes through
   a **us cross-region inference profile** callable from us-east-2.
+- **A blank map that only broke in production.** It rendered locally but not on CloudFront. The
+  cause: maplibre v6 loads its web worker relative to the bundle, and Vite never emitted that
+  file, so it was a 403 behind CloudFront. We now ship the worker as a hashed asset, allow it in
+  the CSP (`worker-src 'self' blob:`), and migrated to **Amazon Location Maps API v2** (no map
+  resource, a key scoped to basemap reads, and a dark style for dark mode). A Playwright test now
+  asserts style 200, tiles 200, a painted canvas and building markers on the deployed site.
 - **Privacy that's provable.** Every API test asserts no PII in the response, an infra test fails
   if any role other than RevealFn ever gets `kms:Decrypt`, and logs are redacted at the source.
 
@@ -102,7 +118,10 @@ Lighthouse accessibility 100, and cdk-nag (AwsSolutions) clean.
 - Business rules enforced by the database and proven by tests, including a release audit that
   tried to break them (and fixed what it found).
 - Accessibility as a feature: color + pattern + icon + text, full keyboard support, 0 serious axe
-  violations, and Lighthouse accessibility 100.
+  violations in both themes, and Lighthouse accessibility 100.
+- We audited our own code before judges could: five independent reviews (correctness, security,
+  data model, docs-vs-infra, dead code). Every High finding was fixed with a test that failed
+  first; what we deliberately deferred is written down with the reason.
 
 ## What we learned
 

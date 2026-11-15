@@ -71,7 +71,8 @@ vulnerability). Please don't open a public issue.
   `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `nosniff` and a strict referrer policy.
 - The SPA calls the API same-origin, so production has **no CORS**. Dev allows only
   `http://localhost:5173`.
-- The Amazon Location API key is restricted to `geo:GetMap*` on our map, from our origin.
+- The Amazon Location (Maps API v2) key is restricted to `geo-maps:GetTile` and `geo-maps:GetStaticMap` on the AWS-provided basemap (`arn:aws:geo-maps:<region>::provider/default`), from our origin only (plus localhost in dev). There is no map resource.
+- A `Permissions-Policy` header allows only same-origin geolocation (the map's opt-in Near me) and disables camera, microphone, payment and USB.
 
 ## Infrastructure
 

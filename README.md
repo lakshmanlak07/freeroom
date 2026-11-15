@@ -4,7 +4,8 @@
 taps, and never get kicked out by a class you didn't know about.
 
 25Live is the read-only source of rooms and classes. Reservations, claims and notifications are
-FreeRoom's own, on serverless AWS.
+FreeRoom's own, on serverless AWS. It works on any phone (bottom tab bar, bottom sheets, 44 px
+targets), has Light / Dark / System themes, and a small fox that keeps you company on desktop.
 
 - **Live demo** (sample data, demo accounts, guided tour, resets itself every 2 hours):
   https://d36vb3bto2ikso.cloudfront.net
@@ -18,19 +19,24 @@ FreeRoom's own, on serverless AWS.
 > deployed demo runs on seeded UMass campus data until UMass IT grants 25Live and SSO access.
 > Switching those on is configuration, not code (DEPLOY.md).
 
-| Campus map: buildings colored by how free they are              | Natural-language search → editable filter chips            |
-| --------------------------------------------------------------- | ---------------------------------------------------------- |
-| ![Map](docs/screenshots/map.png)                                | ![Natural-language search](docs/screenshots/nl-search.png) |
-| **Room timeline: classes (striped, book icon) vs reservations** | **Class conflict → 3 alternatives, one-tap rebook**        |
-| ![Timeline](docs/screenshots/timeline.png)                      | ![Notifications](docs/screenshots/notifications.png)       |
-| **My reservations: confirm window, incoming claims**            | **Landing**                                                |
-| ![My reservations](docs/screenshots/my-reservations.png)        | ![Landing](docs/screenshots/landing.png)                   |
+| Campus map: buildings colored by how free they are              | Natural-language search → editable filter chips                    |
+| --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ![Map](docs/screenshots/map.png)                                | ![Natural-language search](docs/screenshots/nl-search.png)         |
+| **Room timeline: classes (striped, book icon) vs reservations** | **Class conflict → 3 alternatives, one-tap rebook**                |
+| ![Timeline](docs/screenshots/timeline.png)                      | ![Notifications](docs/screenshots/notifications.png)               |
+| **My reservations: confirm window, incoming claims**            | **Landing: live free-room count, How it works**                    |
+| ![My reservations](docs/screenshots/my-reservations.png)        | ![Landing](docs/screenshots/landing.png)                           |
+| **Dark mode (Amazon Location dark basemap)**                    | **Phone: bottom sheet reserve, tab bar**                           |
+| ![Dark map](docs/screenshots/map-dark-desktop.png)              | ![Mobile reserve](docs/screenshots/reserve-sheet-light-mobile.png) |
+
+More: every page in light/dark × desktop/mobile is in [docs/screenshots](docs/screenshots).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   U[Browser<br/>React SPA] -->|HTTPS| CF[CloudFront<br/>+ WAF in prod]
+  U -.API key, Standard Light/Dark.-> LOC[Amazon Location<br/>Maps API v2]
   CF -->|/*| S3[(S3<br/>static site, OAC)]
   CF -->|/api/* + x-origin-verify| GW[API Gateway HTTP API<br/>Cognito JWT authorizer]
   GW --> API[ApiFn<br/>Hono Lambdalith]
@@ -43,12 +49,14 @@ flowchart LR
   DDB -->|Streams: EVT# inserts| OC[OnChangeFn] --> N[(in-app notifications)]
   OC -.failures.-> DLQ[[SQS DLQ]]
   SCH[EventBridge Scheduler] -->|every 1 min| SW[SweeperFn<br/>BR-6 auto-release<br/>+ staleness metric]
-  SCH -->|10 min daytime| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
+  SCH -->|10 min daytime, hourly overnight| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
+  SM[(Secrets Manager<br/>ID pepper, origin-verify,<br/>25Live creds)] -.-> API & RV & SY
   SY --> DDB
   SW --> DDB
   SCH -->|dev only, every 2 h| DR[DemoResetFn<br/>reset + re-seed demo] --> DDB
   COG[Cognito<br/>email/password, SAML-ready] -.tokens.-> U
-  API & RV & SW & SY & OC --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
+  COG --> PT[PreTokenFn<br/>role claims]
+  API & RV & SW & SY & OC & PT & DR --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
 ```
 
 One CDK stack per stage (`infra/`). Everything is pay-per-use, about $8/month at demo scale
@@ -150,19 +158,25 @@ Requires Node ≥ 22.19 (CI uses 24), pnpm via `corepack enable`, and Docker or 
 
 ```bash
 pnpm lint && pnpm typecheck
-pnpm test                       # 253 tests: domain rules, API integration on DynamoDB Local,
-                                # 50-way concurrency, adversarial/IDOR audit, infra assertions
+pnpm test                       # 283 tests: domain rules, API integration on DynamoDB Local,
+                                # 50-way concurrency, adversarial/IDOR audit, sync/sweeper crash
+                                # recovery, infra assertions
+# + 48 Playwright tests: golden path (desktop, iPhone 14, Pixel 7), axe in light AND dark,
+#   mobile layouts at 360/390/430/844 px, theme, fox, people input, audit regressions
 pnpm audit --audit-level high   # CI fails on high/critical
 pnpm --filter @freeroom/infra exec cdk synth -c stage=prod   # cdk-nag AwsSolutions: fails on unjustified findings
 pnpm --filter @freeroom/api e2e              # 12 end-to-end API flows against a running API
 BASE_URL=http://localhost:5173 SMOKE_OWNER=faculty1 SMOKE_CLAIMER=tutor1 pnpm --filter @freeroom/e2e smoke
 BASE_URL=http://localhost:5173 SMOKE_OWNER=faculty1 pnpm --filter @freeroom/e2e lighthouse   # a11y ≥ 95
+BASE_URL=http://localhost:5173 SMOKE_OWNER=faculty1 LH_FORM=mobile pnpm --filter @freeroom/e2e lighthouse  # mobile, all categories
 ```
 
 To run against a deployed stack, set `BASE_URL` to its URL and `E2E_USERS_FILE` to
 `infra/.demo-users.<stage>.local.json` (written by the deploy).
 
-See [docs/TRACEABILITY.md](docs/TRACEABILITY.md) for every rule mapped to its code and tests.
+See [docs/TRACEABILITY.md](docs/TRACEABILITY.md) for every rule mapped to its code and tests, and
+[docs/AUDIT.md](docs/AUDIT.md) for the whole-repo audit (security, data, correctness, docs) and
+what was fixed or deliberately deferred.
 
 ## Deploy
 
@@ -180,12 +194,13 @@ The full guide (first-time bootstrap, the GitHub pipeline, secrets, SES, real 25
 
 | Area                                                                                             | Status                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core rules BR-1/5/6/8/9 (server-enforced, tested)                                                | ✅ Shipped. 255 automated tests + adversarial/IDOR audit ([TRACEABILITY](docs/TRACEABILITY.md))                                                                                                                                                                                                         |
+| Core rules BR-1/5/6/8/9 (server-enforced, tested)                                                | ✅ Shipped. 283 automated tests + 48 Playwright + adversarial/IDOR audit ([TRACEABILITY](docs/TRACEABILITY.md), [AUDIT](docs/AUDIT.md))                                                                                                                                                                 |
 | Search, map, timeline, reserve, claims, notifications, Demo Controls                             | ✅ Shipped, live on dev and prod                                                                                                                                                                                                                                                                        |
+| Mobile layout, dark mode, fox companion, typeable people count                                   | ✅ Shipped (v1.2). Map on Amazon Location Maps API v2 with a live dark basemap                                                                                                                                                                                                                          |
 | Natural-language search                                                                          | ✅ Shipped. **Parser live; Bedrock pending** an account step: Anthropic's one-time use-case form in the Bedrock console. After approval it switches on with no redeploy (DEPLOY.md §6)                                                                                                                  |
 | Security (WAF, KMS, origin-verify, cdk-nag clean) and observability (dashboard, alarms, runbook) | ✅ Shipped                                                                                                                                                                                                                                                                                              |
 | CD via GitHub Actions + OIDC                                                                     | ⛔ **Blocked by account policy.** The hackathon AWS account's SCP denies `iam:CreateOpenIDConnectProvider`. The workflow is complete as committed (CI runs on GitHub; deploy jobs are opt-in with `-c githubOidc=true`). Deploys run from a maintainer machine with short-lived `aws login` credentials |
-| Region                                                                                           | us-east-2 only (the SCP denies us-east-1). The CloudFront WAF is created via a custom resource; Bedrock uses a us cross-region inference profile                                                                                                                                                        |
+| Region                                                                                           | us-east-2 only (the SCP denies CloudFormation in us-east-1, so the CloudFront WAF is created there by a custom resource calling the WAF API). Bedrock uses a us cross-region inference profile                                                                                                          |
 | Live 25Live data, campus SAML SSO                                                                | ⏳ Configuration only, waiting on UMass IT credentials and metadata                                                                                                                                                                                                                                     |
 
 ## Roadmap (v1.1)

@@ -1,5 +1,6 @@
 flowchart LR
   U[Browser<br/>React SPA] -->|HTTPS| CF[CloudFront<br/>+ WAF in prod]
+  U -.API key, Standard Light/Dark.-> LOC[Amazon Location<br/>Maps API v2]
   CF -->|/*| S3[(S3<br/>static site, OAC)]
   CF -->|/api/* + x-origin-verify| GW[API Gateway HTTP API<br/>Cognito JWT authorizer]
   GW --> API[ApiFn<br/>Hono Lambdalith]
@@ -12,9 +13,11 @@ flowchart LR
   DDB -->|Streams: EVT# inserts| OC[OnChangeFn] --> N[(in-app notifications)]
   OC -.failures.-> DLQ[[SQS DLQ]]
   SCH[EventBridge Scheduler] -->|every 1 min| SW[SweeperFn<br/>BR-6 auto-release<br/>+ staleness metric]
-  SCH -->|10 min daytime| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
+  SCH -->|10 min daytime, hourly overnight| SY[SyncFn] -->|rate-limited| L25[(25Live<br/>read-only)]
+  SM[(Secrets Manager<br/>ID pepper, origin-verify,<br/>25Live creds)] -.-> API & RV & SY
   SY --> DDB
   SW --> DDB
   SCH -->|dev only, every 2 h| DR[DemoResetFn<br/>reset + re-seed demo] --> DDB
   COG[Cognito<br/>email/password, SAML-ready] -.tokens.-> U
-  API & RV & SW & SY & OC --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
+  COG --> PT[PreTokenFn<br/>role claims]
+  API & RV & SW & SY & OC & PT & DR --> CW[CloudWatch<br/>JSON logs, EMF metrics,<br/>dashboard, alarms → SNS]
