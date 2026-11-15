@@ -56,6 +56,24 @@ function template(e: Item): Template | null {
         title: 'Your room request expired',
         body: 'The owner did not respond before the cutoff. The reservation stays with them.',
       };
+    case 'ATTENDEE_JOINED':
+      return {
+        type: 'invite.joined',
+        title: `${(data.alias as string | undefined) ?? 'Someone'} joined your study session`,
+        body: 'They used your invite link. You can see everyone on My Reservations.',
+      };
+    case 'ATTENDEE_LEFT':
+      return {
+        type: 'invite.left',
+        title: `${(data.alias as string | undefined) ?? 'Someone'} left your study session`,
+        body: 'One more seat is open.',
+      };
+    case 'CANCELLED':
+      return {
+        type: 'reservation.cancelled',
+        title: 'Study session cancelled',
+        body: 'The host cancelled this booking. Find another free room nearby.',
+      };
     case 'TRANSFERRED':
       return {
         type: 'reservation.transferred',

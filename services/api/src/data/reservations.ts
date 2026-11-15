@@ -115,6 +115,15 @@ export const reasonCodes = (e: unknown): (string | undefined)[] =>
 export const jitter = (attempt: number) =>
   new Promise((r) => setTimeout(r, Math.random() * 25 * (attempt + 1)));
 
+/** Invite attendees of a reservation (user ids), so lifecycle events can notify them too. */
+export async function attendeeIdsOf(db: Db, resId: string): Promise<string[]> {
+  const items = await queryAll(db, {
+    KeyConditionExpression: 'PK = :p AND begins_with(SK, :a)',
+    ExpressionAttributeValues: { ':p': keys.resPk(resId), ':a': keys.prefix.attendee },
+  });
+  return items.map((i) => i.userId as string);
+}
+
 export async function getReservation(db: Db, id: string): Promise<ReservationRecord | null> {
   const r = await db.doc.send(
     new GetCommand({ TableName: db.table, Key: keys.reservation(id), ConsistentRead: true }),
@@ -389,6 +398,7 @@ export async function cancelReservation(
 ) {
   const nowIso = now.toISOString();
   const slots = enumerateSlots(asInterval(rec));
+  const attendees = await attendeeIdsOf(db, rec.id);
   try {
     await db.doc.send(
       new TransactWriteCommand({
@@ -410,7 +420,18 @@ export async function cancelReservation(
             },
           },
           quotaRemove(db, rec.ownerId, rec.id),
-          eventPut(db, rec.id, 0, { type: 'CANCELLED', at: nowIso, actorId }, now),
+          eventPut(
+            db,
+            rec.id,
+            0,
+            {
+              type: 'CANCELLED',
+              at: nowIso,
+              actorId,
+              ...(attendees.length && { notify: attendees }),
+            },
+            now,
+          ),
           ...slots.map((s): TxItem => ({
             Delete: {
               TableName: db.table,
@@ -481,7 +502,7 @@ export async function releaseForClassConflict(
         actorId: null,
         reason: 'CLASS_CONFLICT',
         data: { class: details, alternatives },
-        notify: [rec.ownerId],
+        notify: [rec.ownerId, ...(await attendeeIdsOf(db, rec.id))],
       },
       now,
     ),
@@ -554,7 +575,7 @@ export async function releaseUnconfirmed(db: Db, rec: ReservationRecord, now: Da
               at: nowIso,
               actorId: null,
               reason: 'UNCONFIRMED',
-              notify: [rec.ownerId],
+              notify: [rec.ownerId, ...(await attendeeIdsOf(db, rec.id))],
             },
             now,
           ),

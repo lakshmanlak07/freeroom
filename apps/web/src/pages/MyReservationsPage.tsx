@@ -1,16 +1,33 @@
 /** F6: My Reservations — upcoming/past, confirm (BR-6 window), cancel, claims in/out, history. */
 import * as Dialog from '@radix-ui/react-dialog';
 import { canConfirm, confirmWindowOpensAt, cutoffAt } from '@freeroom/domain';
-import type { Claim, ReservationDetail } from '@freeroom/shared';
+import type { Claim, MyReservation, ReservationDetail } from '@freeroom/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarX, CheckCircle2, Clock, History, Inbox, Mail, Phone, Send, X } from 'lucide-react';
-import { useState } from 'react';
+import {
+  CalendarX,
+  CheckCircle2,
+  Clock,
+  Footprints,
+  History,
+  Inbox,
+  LogOut,
+  Mail,
+  Phone,
+  Send,
+  UsersRound,
+  X,
+} from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, Skeleton } from '@/components/EmptyState';
 import { useToast } from '@/components/Toast';
-import { Button } from '@/components/ui/button';
+import { Avatars } from '@/components/invites/Avatars';
+import { CalendarMenu } from '@/components/invites/CalendarMenu';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { useFeature } from '@/config';
+import { studySession } from '@/lib/calendar';
 import { campusDay, fmtDay, fmtDuration, fmtRange, fmtTime, useNow } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
@@ -125,7 +142,13 @@ function ReservationList({
   );
 }
 
-function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () => void }) {
+const InviteSheet = lazy(() => import('@/components/invites/InviteSheet'));
+
+function ReservationRow({ r, onHistory }: { r: MyReservation; onHistory: () => void }) {
+  const invitesOn = useFeature('invites');
+  const directionsOn = useFeature('directions');
+  const [inviting, setInviting] = useState(false);
+  const attendee = r.role === 'attendee';
   const { api } = useAuth();
   const toast = useToast();
   const qc = useQueryClient();
@@ -153,6 +176,11 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
     onSuccess: () => (toast({ tone: 'info', title: 'Reservation cancelled' }), refresh()),
     onError: (e) => toast({ tone: 'error', title: 'Couldn’t cancel', body: explain(e) }),
   });
+  const leave = useMutation({
+    mutationFn: () => api.leaveReservation(r.id),
+    onSuccess: () => (toast({ tone: 'info', title: 'You left the study session' }), refresh()),
+    onError: (e) => toast({ tone: 'error', title: 'Couldn’t leave', body: explain(e) }),
+  });
   const active = r.status === 'PENDING_CONFIRMATION' || r.status === 'CONFIRMED';
 
   return (
@@ -167,7 +195,24 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
         <p className="text-sm text-muted tabular">
           {fmtDay(campusDay(start))} · {fmtRange(r.start, r.end)} · party of {r.partySize}
         </p>
-        {r.status === 'PENDING_CONFIRMATION' && (
+        {(attendee || !!r.attendees?.length) && (
+          <div className="mt-2 flex items-center gap-2">
+            {attendee && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate">
+                <UsersRound className="size-3.5" aria-hidden /> Invited · hosted by {r.ownerAlias}
+              </span>
+            )}
+            {!!r.attendees?.length && (
+              <>
+                <Avatars names={r.attendees.map((a) => a.alias)} max={4} />
+                <span className="text-xs text-muted">
+                  {r.attendees.length} {r.attendees.length === 1 ? 'person' : 'people'} joined
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        {!attendee && r.status === 'PENDING_CONFIRMATION' && (
           <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-ink tabular">
             <Clock className="size-3.5" aria-hidden />
             {now < opens
@@ -180,7 +225,49 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
       </div>
       <Pill status={r.status} />
       <div className="flex flex-wrap gap-2">
-        {r.status === 'PENDING_CONFIRMATION' && (
+        {active && invitesOn && !attendee && (
+          <Button size="sm" variant="outline" onClick={() => setInviting(true)}>
+            <UsersRound className="size-4" aria-hidden /> Invite
+          </Button>
+        )}
+        {active && invitesOn && (
+          <CalendarMenu
+            size="sm"
+            event={studySession({
+              roomName: roomName(r.roomId),
+              buildingName: '',
+              start: r.start,
+              end: r.end,
+              link: `${window.location.origin}/rooms/${encodeURIComponent(r.roomId)}`,
+            })}
+            onIcs={() => {
+              api
+                .downloadCalendar(r.id, `freeroom-${r.roomId}.ics`)
+                .catch((e) =>
+                  toast({ tone: 'error', title: 'Couldn’t make the file', body: explain(e) }),
+                );
+            }}
+          />
+        )}
+        {active && directionsOn && (
+          <Link
+            to={`/map?to=${encodeURIComponent(r.roomId)}`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            <Footprints className="size-4" aria-hidden /> Get me there
+          </Link>
+        )}
+        {attendee && active && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => leave.mutate()}
+            disabled={leave.isPending}
+          >
+            <LogOut className="size-4" aria-hidden /> Leave
+          </Button>
+        )}
+        {!attendee && r.status === 'PENDING_CONFIRMATION' && (
           <Button
             size="sm"
             disabled={!check.ok || confirm.isPending}
@@ -197,6 +284,7 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
           </Button>
         )}
         {active &&
+          !attendee &&
           (confirmCancel ? (
             <>
               <Button
@@ -225,6 +313,20 @@ function ReservationRow({ r, onHistory }: { r: ReservationDetail; onHistory: () 
           <History className="size-4" aria-hidden /> History
         </Button>
       </div>
+      {inviting && (
+        <Suspense fallback={null}>
+          <InviteSheet
+            target={{
+              reservationId: r.id,
+              roomId: r.roomId,
+              start: r.start,
+              end: r.end,
+              hostAlias: r.ownerAlias,
+            }}
+            onClose={() => setInviting(false)}
+          />
+        </Suspense>
+      )}
     </li>
   );
 }

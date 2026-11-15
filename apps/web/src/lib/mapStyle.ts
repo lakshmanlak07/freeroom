@@ -40,3 +40,26 @@ export function mapStyleFor(
 
 /** For logs: never print the API key. */
 export const redactKey = (s: string) => s.replace(/([?&]key=)[^&\s"]+/g, '$1<redacted>');
+
+/**
+ * Amazon Location Maps v2 static image (GetStaticMap — the API key already allows it) with a pin
+ * at `p`. null without a key (local/mock mode): callers show an illustrated fallback.
+ */
+export function staticMapUrl(
+  config: { region: string; mapApiKey?: string },
+  p: { lat: number; lng: number },
+  o: { width: number; height: number; scheme?: ColorScheme; zoom?: number },
+) {
+  if (!config.mapApiKey) return null;
+  const q = new URLSearchParams({
+    center: `${p.lng},${p.lat}`,
+    zoom: String(o.zoom ?? 16),
+    width: String(o.width),
+    height: String(o.height),
+    style: 'Standard',
+    'color-scheme': o.scheme ?? 'Light',
+    'compact-overlay': `point:${p.lng},${p.lat};color=#7B3F00;size=large`,
+    key: config.mapApiKey,
+  });
+  return `https://maps.geo.${config.region}.amazonaws.com/v2/static/map@2x?${q}`;
+}

@@ -22,3 +22,27 @@ describe('map style (config → style)', () => {
     );
   });
 });
+
+describe('staticMapUrl', () => {
+  it('builds a Maps v2 GetStaticMap URL with lng,lat center and a pin; null without a key', async () => {
+    const { staticMapUrl } = await import('./mapStyle');
+    const u = new URL(
+      staticMapUrl(
+        { region: 'us-east-2', mapApiKey: 'k' },
+        { lat: 42.39, lng: -72.52 },
+        {
+          width: 600,
+          height: 280,
+          scheme: 'Dark',
+        },
+      )!,
+    );
+    expect(u.origin + u.pathname).toBe('https://maps.geo.us-east-2.amazonaws.com/v2/static/map@2x');
+    expect(u.searchParams.get('center')).toBe('-72.52,42.39');
+    expect(u.searchParams.get('color-scheme')).toBe('Dark');
+    expect(u.searchParams.get('compact-overlay')).toMatch(/^point:-72.52,42.39;/);
+    expect(
+      staticMapUrl({ region: 'us-east-2' }, { lat: 1, lng: 2 }, { width: 1, height: 1 }),
+    ).toBeNull();
+  });
+});

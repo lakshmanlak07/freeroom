@@ -41,12 +41,18 @@ describe('onChange mapping table', () => {
     });
   });
 
-  it.each([['CREATED'], ['CONFIRMED'], ['CANCELLED'], ['CONFLICTED']])(
-    '%s → no notification',
-    (type) => {
-      expect(mapRecord(evt(type))).toEqual([]);
-    },
-  );
+  it('CANCELLED tells the invite attendees (the host cancelled it, so is never listed)', () => {
+    const out = mapRecord(evt('CANCELLED', { notify: ['att1', 'att2'] }));
+    expect(out.map((n) => [n.userId, n.type])).toEqual([
+      ['att1', 'reservation.cancelled'],
+      ['att2', 'reservation.cancelled'],
+    ]);
+    expect(mapRecord(evt('CANCELLED', { notify: undefined }))).toEqual([]); // no attendees
+  });
+
+  it.each([['CREATED'], ['CONFIRMED'], ['CONFLICTED']])('%s → no notification', (type) => {
+    expect(mapRecord(evt(type))).toEqual([]);
+  });
 
   it('ignores non-INSERTs, non-event items, admin releases and events with no recipients', () => {
     expect(mapRecord({ ...evt('CLAIM_DENIED'), eventName: 'MODIFY' })).toEqual([]);

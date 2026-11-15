@@ -40,6 +40,7 @@ import { metric } from '../metrics';
 import { syncSchedule } from '../sync/syncSchedule';
 import { UNKNOWN_OWNER, reservationDetail, reservationItem } from '../views';
 import { listReservationClaims } from '../data/claims';
+import { listAttendees, listJoined } from '../data/invites';
 
 const STALE_MS = 15 * 60_000; // CLASS_CACHE_MAX_STALENESS
 const FAIL_CLOSED_MS = 6 * 3_600_000; // §8.1: unreachable 25Live + data older than 6h → 503
@@ -202,9 +203,31 @@ export function reservationRoutes(ctx: Ctx) {
     const { scope } = parse(MyReservationsQuerySchema, c.req.query());
     const now = ctx.now();
     const recs = await listUserReservations(ctx.db, user.userId, scope, now);
-    const body: MyReservationsResponse = {
-      reservations: recs.map((rec) => reservationDetail(rec, user, user.userId, now)),
-    };
+    if (!ctx.features?.invites) {
+      const body: MyReservationsResponse = {
+        reservations: recs.map((rec) => reservationDetail(rec, user, user.userId, now)),
+      };
+      return c.json(body);
+    }
+    // Invites: who's coming to mine, and the sessions I joined (aliases only).
+    const joined = scope === 'upcoming' ? await listJoined(ctx.db, user.userId, now) : [];
+    const owners = await getUsers(ctx.db, [...new Set(joined.map((r) => r.ownerId))]);
+    const withPeople = async (rec: ReservationRecord, role: 'owner' | 'attendee') => ({
+      ...reservationDetail(
+        rec,
+        role === 'owner' ? user : (owners.get(rec.ownerId) ?? UNKNOWN_OWNER),
+        user.userId,
+        now,
+      ),
+      role,
+      attendees: (await listAttendees(ctx.db, rec.id)).map((x) => ({ alias: x.alias })),
+    });
+    const all = await Promise.all([
+      ...recs.map((rec) => withPeople(rec, 'owner')),
+      ...joined.map((rec) => withPeople(rec, 'attendee')),
+    ]);
+    all.sort((x, y) => x.start.localeCompare(y.start));
+    const body: MyReservationsResponse = { reservations: all };
     return c.json(body);
   });
 
