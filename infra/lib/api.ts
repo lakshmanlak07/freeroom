@@ -11,7 +11,7 @@ import type { Data } from './data';
 import { READ, WRITE, apiFn, devOrigins, grantTable, type Stage } from './fn';
 
 /** Every partition-key family the main API touches (see services/api/src/data/keys.ts). */
-const API_KEYS = [
+export const API_KEYS = [
   'ROOM#*',
   'BLDG#*',
   'CATALOG',
@@ -32,7 +32,7 @@ export class Api extends Construct {
   constructor(
     scope: Construct,
     id: string,
-    props: { stage: Stage; demo: boolean; data: Data; auth: Auth; webOrigin: string },
+    props: { stage: Stage; demo: boolean; data: Data; auth: Auth },
   ) {
     super(scope, id);
     const { data, auth, stage } = props;
@@ -84,21 +84,27 @@ export class Api extends Construct {
     grantTable(this.revealFn, data.table, [...READ, 'PutItem', 'UpdateItem'], ['USER#*', 'RES#*']);
     data.piiKey.grant(this.revealFn, 'kms:Decrypt', 'kms:GenerateDataKey');
 
+    // The SPA reaches the API same-origin through CloudFront (/api/*), so CORS is only for the
+    // local Vite dev server against the dev stage. (Listing the CloudFront origin here would
+    // also create a CloudFront ↔ API dependency cycle.)
+    const corsOrigins = devOrigins(stage);
     this.httpApi = new HttpApi(this, 'Http', {
       apiName: `freeroom-${stage}`,
-      corsPreflight: {
-        allowOrigins: [props.webOrigin, ...devOrigins(stage)],
-        allowMethods: [
-          CorsHttpMethod.GET,
-          CorsHttpMethod.POST,
-          CorsHttpMethod.PATCH,
-          CorsHttpMethod.DELETE,
-          CorsHttpMethod.OPTIONS,
-        ],
-        allowHeaders: ['authorization', 'content-type', 'idempotency-key', 'x-correlation-id'],
-        exposeHeaders: ['x-correlation-id'],
-        maxAge: Duration.hours(1),
-      },
+      corsPreflight: corsOrigins.length
+        ? {
+            allowOrigins: corsOrigins,
+            allowMethods: [
+              CorsHttpMethod.GET,
+              CorsHttpMethod.POST,
+              CorsHttpMethod.PATCH,
+              CorsHttpMethod.DELETE,
+              CorsHttpMethod.OPTIONS,
+            ],
+            allowHeaders: ['authorization', 'content-type', 'idempotency-key', 'x-correlation-id'],
+            exposeHeaders: ['x-correlation-id'],
+            maxAge: Duration.hours(1),
+          }
+        : undefined,
     });
     const authorizer = new HttpJwtAuthorizer(
       'Cognito',

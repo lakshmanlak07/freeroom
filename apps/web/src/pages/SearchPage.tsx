@@ -274,11 +274,19 @@ export function SearchPage() {
             ))}
           </ul>
         ) : results.length ? (
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {results.map((r) => (
-              <RoomCard key={r.roomId} room={r} />
-            ))}
-          </ul>
+          <>
+            <h2 id="results-h" className="sr-only">
+              Results
+            </h2>
+            <ul
+              className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+              aria-labelledby="results-h"
+            >
+              {results.map((r) => (
+                <RoomCard key={r.roomId} room={r} />
+              ))}
+            </ul>
+          </>
         ) : (
           <EmptyState
             icon={SearchX}

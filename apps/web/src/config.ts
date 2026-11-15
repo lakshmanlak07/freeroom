@@ -11,7 +11,8 @@ export interface AppConfig {
   demoMode: boolean;
 }
 
-const LOCAL: AppConfig = { apiUrl: 'http://localhost:3001', region: 'us-east-1', demoMode: true };
+/** Local: same-origin /api, proxied by Vite to the local API (deployed: CloudFront /api/*). */
+const LOCAL: AppConfig = { apiUrl: '/api', region: 'us-east-1', demoMode: true };
 
 export async function loadConfig(): Promise<AppConfig> {
   try {

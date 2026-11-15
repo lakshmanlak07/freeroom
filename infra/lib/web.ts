@@ -1,7 +1,13 @@
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import type { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
 import {
+  AllowedMethods,
   CachePolicy,
   Distribution,
+  FunctionCode,
+  FunctionEventType,
+  Function as CfFunction,
+  OriginRequestPolicy,
   HeadersFrameOption,
   HeadersReferrerPolicy,
   HttpVersion,
@@ -9,7 +15,7 @@ import {
   ResponseHeadersPolicy,
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
-import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { HttpOrigin, S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { CfnAPIKey, CfnMap } from 'aws-cdk-lib/aws-location';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, CacheControl, Source } from 'aws-cdk-lib/aws-s3-deployment';
@@ -25,18 +31,22 @@ import { ROOT, devOrigins, type Stage } from './fn';
 
 const WEB_DIST = join(ROOT, 'apps/web/dist');
 
-/** Private S3 + CloudFront (OAC, SPA fallback, security headers) + Amazon Location map & key. */
+/**
+ * Private S3 + CloudFront (OAC, SPA fallback, security headers, optional WAF) + Amazon Location.
+ * The API is served from the same distribution under /api/* so the WAF covers it too.
+ */
 export class Web extends Construct {
   readonly bucket: Bucket;
   readonly distribution: Distribution;
   readonly url: string;
   readonly mapName: string;
   readonly mapApiKey: string;
+  private headers!: ResponseHeadersPolicy;
 
   constructor(
     scope: Construct,
     id: string,
-    private readonly props: { stage: Stage },
+    private readonly props: { stage: Stage; webAclArn?: string },
   ) {
     super(scope, id);
     const prod = props.stage === 'prod';
@@ -83,8 +93,18 @@ export class Web extends Construct {
       },
     });
 
+    this.headers = headers;
+    // SPA fallback as a viewer-request rewrite (not distribution error pages, which would also
+    // rewrite the API's 403/404 JSON into index.html).
+    const spa = new CfFunction(this, 'SpaRewrite', {
+      code: FunctionCode.fromInline(
+        String.raw`function handler(e){var r=e.request;if(!/\.[A-Za-z0-9]+$/.test(r.uri))r.uri='/index.html';return r;}`,
+      ),
+    });
     this.distribution = new Distribution(this, 'Cdn', {
+      webAclId: props.webAclArn,
       defaultBehavior: {
+        functionAssociations: [{ function: spa, eventType: FunctionEventType.VIEWER_REQUEST }],
         origin: S3BucketOrigin.withOriginAccessControl(this.bucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: CachePolicy.CACHING_OPTIMIZED,
@@ -92,13 +112,6 @@ export class Web extends Construct {
         compress: true,
       },
       defaultRootObject: 'index.html',
-      // SPA fallback: client-side routes resolve to index.html.
-      errorResponses: [403, 404].map((httpStatus) => ({
-        httpStatus,
-        responseHttpStatus: 200,
-        responsePagePath: '/index.html',
-        ttl: Duration.seconds(0),
-      })),
       // TLS policy is fixed by the default *.cloudfront.net cert; set minimumProtocolVersion with a custom domain.
       priceClass: PriceClass.PRICE_CLASS_100,
       httpVersion: HttpVersion.HTTP2_AND_3,
@@ -132,6 +145,28 @@ export class Web extends Construct {
     });
     keyValue.node.addDependency(key);
     this.mapApiKey = keyValue.getResponseField('Key');
+  }
+
+  /** /api/* → the HTTP API (prefix stripped), never cached, all viewer headers incl. Authorization. */
+  routeApi(httpApi: HttpApi): string {
+    const strip = new CfFunction(this, 'ApiPrefixStrip', {
+      code: FunctionCode.fromInline(
+        String.raw`function handler(e){var r=e.request;r.uri=r.uri.replace(/^\/api/,'')||'/';return r;}`,
+      ),
+    });
+    this.distribution.addBehavior(
+      '/api/*',
+      new HttpOrigin(`${httpApi.apiId}.execute-api.${Stack.of(this).region}.amazonaws.com`),
+      {
+        viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+        allowedMethods: AllowedMethods.ALLOW_ALL,
+        cachePolicy: CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        responseHeadersPolicy: this.headers,
+        functionAssociations: [{ function: strip, eventType: FunctionEventType.VIEWER_REQUEST }],
+      },
+    );
+    return `${this.url}/api`;
   }
 
   /** Upload the SPA build + a generated runtime config.json (never cached). */

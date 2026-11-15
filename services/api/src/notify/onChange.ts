@@ -11,6 +11,7 @@ import type { Db, Item } from '../data/db';
 import { putNotification, type NotificationDraft } from '../data/notifications';
 import { getPrivate } from '../data/users';
 import type { Logger } from '../logger';
+import { metric } from '../metrics';
 
 export interface ChangeRecord {
   eventName?: 'INSERT' | 'MODIFY' | 'REMOVE';
@@ -148,6 +149,14 @@ export interface OnChangeDeps {
 
 export async function onChange(deps: OnChangeDeps, records: ChangeRecord[]): Promise<number> {
   let created = 0;
+  for (const r of records) {
+    if (r.newImage?.correlationId)
+      deps.log.info('notify.event', {
+        correlationId: r.newImage.correlationId,
+        eventType: r.newImage.type,
+        reservationId: r.newImage.reservationId,
+      });
+  }
   for (const draft of records.flatMap(mapRecord)) {
     if (!(await putNotification(deps.db, draft))) continue; // duplicate delivery
     created++;
@@ -158,6 +167,7 @@ export async function onChange(deps: OnChangeDeps, records: ChangeRecord[]): Pro
         if (email) await deps.sendEmail(email, `FreeRoom: ${draft.title}`, draft.body);
       } catch (e) {
         // Error name only: provider messages can echo the recipient address.
+        metric('NotificationFailures');
         deps.log.warn('notify.email_failed', { type: draft.type, errorName: (e as Error).name }); // in-app copy already stored
       }
     }

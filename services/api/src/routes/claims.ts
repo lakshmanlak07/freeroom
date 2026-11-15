@@ -22,6 +22,7 @@ import {
 import { getReservation } from '../data/reservations';
 import { getPrivate, getUser, getUsers } from '../data/users';
 import { AppError, parse } from '../errors';
+import { metric } from '../metrics';
 import { UNKNOWN_OWNER } from '../views';
 
 async function views(ctx: Ctx, claims: ClaimRecord[]): Promise<Claim[]> {
@@ -89,6 +90,7 @@ export function claimRoutes(ctx: Ctx) {
       now: ctx.now(),
       limits: ctx.limits,
     });
+    metric('ClaimsApproved');
     return c.json((await views(ctx, [claim]))[0]);
   });
 

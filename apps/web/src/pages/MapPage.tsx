@@ -3,7 +3,7 @@ import { distanceMeters } from '@freeroom/domain';
 import type { Building } from '@freeroom/shared';
 import { useQuery } from '@tanstack/react-query';
 import { List, LocateFixed, MapPin } from 'lucide-react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
@@ -30,9 +30,9 @@ const OSM_STYLE: maplibregl.StyleSpecification = {
 /** Color AND text label (the % is printed on the marker) — never color alone. */
 export const tier = (pct: number) =>
   pct >= 60
-    ? { label: 'Mostly free', color: '#2e8b57' }
+    ? { label: 'Mostly free', color: '#1e6b45' } // white text ≥ 4.5:1 (WCAG AA) on every tier
     : pct >= 30
-      ? { label: 'Some free', color: '#c77700' }
+      ? { label: 'Some free', color: '#8a5300' }
       : { label: 'Busy', color: '#8b2c2c' };
 
 export default function MapPage() {

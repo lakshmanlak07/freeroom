@@ -33,6 +33,8 @@ export class Async extends Construct {
       [...READ, ...WRITE],
       ['SWEEP#*', 'RES#*', 'ROOM#*', 'USER#*'],
     );
+    // ScheduleStalenessMinutes: read the latest sync runs.
+    grantTable(this.sweeperFn, data.table, ['Query'], ['SYNC#*']);
 
     this.syncFn = apiFn(this, 'SyncFn', {
       stage,

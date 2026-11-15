@@ -36,6 +36,7 @@ import { getCatalog } from '../data/catalog';
 import { getRoomDay } from '../data/schedule';
 import { getUser, getUsers } from '../data/users';
 import { AppError, parse } from '../errors';
+import { metric } from '../metrics';
 import { syncSchedule } from '../sync/syncSchedule';
 import { UNKNOWN_OWNER, reservationDetail, reservationItem } from '../views';
 import { listReservationClaims } from '../data/claims';
@@ -176,6 +177,7 @@ export function reservationRoutes(ctx: Ctx) {
       roomId: rec.roomId,
       outcome: outcome.kind,
     });
+    if (outcome.kind === 'created') metric('ReservationsCreated');
     return outcome.kind === 'created'
       ? c.json(response, 201)
       : c.json(outcome.body as object, outcome.status as 201);

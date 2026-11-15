@@ -4,7 +4,7 @@
  * transaction per conflicting reservation. Callable from the sync Lambda, scripts, demo routes,
  * and the on-demand refresh in POST /reservations.
  */
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
   SLOT_MS,
   addDays,
@@ -265,4 +265,30 @@ export async function injectClass(
     new PutCommand({ TableName: db.table, Item: { ...keys.injectedClass(eventId), raw } }),
   );
   return eventId;
+}
+
+/** Newest successful FULL sync across sources (ScheduleStalenessMinutes; null = never synced). */
+export async function lastSuccessfulSyncAt(db: Db): Promise<Date | null> {
+  let best: string | null = null;
+  for (const source of ['25live', 'mock']) {
+    const r = await db.doc.send(
+      new QueryCommand({
+        TableName: db.table,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :run)',
+        FilterExpression: '#s = :ok AND #scope = :full',
+        ExpressionAttributeNames: { '#s': 'status', '#scope': 'scope' },
+        ExpressionAttributeValues: {
+          ':pk': keys.syncRunPk(source),
+          ':run': keys.prefix.run,
+          ':ok': 'SUCCESS',
+          ':full': 'full',
+        },
+        ScanIndexForward: false,
+        Limit: 50, // ponytail: newest 50 runs (~8h at 10-min cadence); older = stale anyway
+      }),
+    );
+    const at = r.Items?.[0]?.startedAt as string | undefined;
+    if (at && (!best || at > best)) best = at;
+  }
+  return best ? new Date(best) : null;
 }

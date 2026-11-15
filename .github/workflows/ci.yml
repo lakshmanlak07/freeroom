@@ -1,12 +1,16 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore: [main] # main runs CI inside deploy.yml (CI → deploy dev → smoke)
+  pull_request:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,9 +28,15 @@ jobs:
       - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm audit --audit-level high
+      - name: cdk-nag (AwsSolutions) on both stages
+        working-directory: infra
+        run: |
+          npx cdk synth -q -c stage=dev
+          npx cdk synth -q -c stage=prod

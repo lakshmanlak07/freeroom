@@ -1,0 +1,19 @@
+{
+  "name": "@freeroom/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "playwright test",
+    "lighthouse": "tsx lighthouse.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^20.19.43",
+    "lighthouse": "^13.6.0",
+    "puppeteer-core": "^25.17.0",
+    "tsx": "^4.23.15"
+  }
+}

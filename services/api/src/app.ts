@@ -5,8 +5,10 @@ import type { VerifyIdToken } from './auth';
 import type { ContactService } from './contact';
 import type { Db } from './data/db';
 import { getUser, type UserProfile } from './data/users';
+import { withCorrelationId } from './correlation';
 import { AppError } from './errors';
 import { createLogger, type Logger } from './logger';
+import { metric } from './metrics';
 import { claimRoutes, contactRevealRoutes } from './routes/claims';
 import { demoRoutes, mock25liveRoutes } from './routes/dev';
 import { notificationRoutes } from './routes/notifications';
@@ -94,7 +96,7 @@ export function createApp(deps: AppDeps) {
     c.set('log', ctx.logger.child({ correlationId: id }));
     c.header('x-correlation-id', id);
     const t0 = Date.now();
-    await next();
+    await withCorrelationId(id, next);
     c.get('log').info('http', {
       method: c.req.method,
       path: c.req.path,
@@ -155,6 +157,8 @@ export function createApp(deps: AppDeps) {
   app.notFound((c) => c.json(errorBody('NOT_FOUND', 'Route not found'), 404));
   app.onError((e, c) => {
     if (e instanceof AppError) {
+      if (e.code === 'CLASS_CONFLICT') metric('ClassConflictsBlocked');
+      if (e.code === 'SLOT_TAKEN') metric('SlotTakenRaces');
       return c.json(errorBody(e.code, e.message, e.details), ERROR_STATUS[e.code]);
     }
     (c.get('log') ?? ctx.logger).error('unhandled', { error: e });

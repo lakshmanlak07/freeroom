@@ -19,6 +19,7 @@ import {
 } from '@freeroom/domain';
 import type { ReleaseReason, ReservationEventType, ReservationStatus } from '@freeroom/shared';
 import { randomUUID } from 'node:crypto';
+import { currentCorrelationId } from '../correlation';
 import { AppError } from '../errors';
 import { batchGet, queryAll, ttlFrom, type Db, type Item } from './db';
 import { keys } from './keys';
@@ -90,6 +91,7 @@ export const eventPut = (
         eventId,
         reservationId: resId,
         ...e,
+        ...(currentCorrelationId() && { correlationId: currentCorrelationId() }),
         ttl: ttlFrom(now, 365),
       },
       ConditionExpression: 'attribute_not_exists(PK)', // audit is append-only

@@ -18,6 +18,7 @@ export class Data extends Construct {
   readonly piiKey: Key;
   readonly pepper: Secret;
   readonly twentyFiveLive: Secret;
+  readonly testUsers: Secret;
 
   constructor(scope: Construct, id: string, props: { stage: Stage }) {
     super(scope, id);
@@ -56,6 +57,14 @@ export class Data extends Construct {
       secretName: `freeroom/${props.stage}/uid-pepper`,
       description: 'HMAC pepper for University IDs',
       generateSecretString: { passwordLength: 64, excludePunctuation: true, includeSpace: false },
+      removalPolicy,
+    });
+
+    // Demo + smoke-test logins, written by postDeploy, read by the Playwright smoke (CI + local).
+    this.testUsers = new Secret(this, 'TestUsers', {
+      secretName: `freeroom/${props.stage}/test-users`,
+      description: 'Demo/smoke Cognito logins {"<userId>":{"email","password"}} (postDeploy).',
+      secretObjectValue: {},
       removalPolicy,
     });
 

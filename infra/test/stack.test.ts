@@ -9,6 +9,7 @@ const synth = (stage: 'dev' | 'prod') => {
   const stack = new FreeRoomStack(app, `FreeRoom-${stage}`, {
     stage,
     demoMode: stage === 'dev',
+    githubRepo: 'lakshmanlak07/freeroom',
     env: { account: '111111111111', region: 'us-east-1' },
   });
   return Template.fromStack(stack);
@@ -117,7 +118,7 @@ describe('Api', () => {
     expect(routes.some((r) => r.Properties.RouteKey.startsWith('ANY'))).toBe(false);
   });
 
-  it('throttles the stage and allows only the web origin + localhost', () => {
+  it('throttles the stage; CORS only for localhost in dev (the SPA is same-origin via /api)', () => {
     dev.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
       DefaultRouteSettings: Match.objectLike({
         ThrottlingBurstLimit: 100,
@@ -125,20 +126,14 @@ describe('Api', () => {
       }),
     });
     dev.hasResourceProperties('AWS::ApiGatewayV2::Api', {
-      CorsConfiguration: Match.objectLike({
-        AllowOrigins: Match.arrayWith(['http://localhost:5173']),
-      }),
+      CorsConfiguration: Match.objectLike({ AllowOrigins: ['http://localhost:5173'] }),
     });
     // prod must never trust a localhost origin (CORS, OAuth redirects, map key referers)
     expect(JSON.stringify(prod.toJSON())).not.toContain('localhost');
-    prod.hasResourceProperties('AWS::ApiGatewayV2::Api', {
-      CorsConfiguration: Match.objectLike({
-        AllowOrigins: Match.not(Match.arrayWith(['http://localhost:5173'])),
-      }),
-    });
+    prod.hasResourceProperties('AWS::ApiGatewayV2::Api', { CorsConfiguration: Match.absent() });
   });
 
-  it('all functions run Node 20 on ARM64', () => {
+  it('all functions run Node 24 on ARM64', () => {
     const fns = Object.values(
       dev.findResources('AWS::Lambda::Function', {
         Properties: {
@@ -150,7 +145,7 @@ describe('Api', () => {
     }[];
     expect(fns).toHaveLength(6);
     for (const f of fns)
-      expect([f.Properties.Runtime, f.Properties.Architectures]).toEqual(['nodejs20.x', ['arm64']]);
+      expect([f.Properties.Runtime, f.Properties.Architectures]).toEqual(['nodejs24.x', ['arm64']]);
   });
 });
 
@@ -206,11 +201,20 @@ describe('Auth + Web', () => {
         }),
       },
     });
+    // SPA fallback is a viewer-request function (error pages would swallow API 403/404 JSON).
+    dev.hasResourceProperties('AWS::CloudFront::Function', {
+      FunctionCode: Match.stringLikeRegexp("r.uri='/index.html'"),
+    });
     dev.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
-        CustomErrorResponses: Match.arrayWith([
-          Match.objectLike({ ErrorCode: 404, ResponsePagePath: '/index.html' }),
-        ]),
+        CustomErrorResponses: Match.absent(),
+        CacheBehaviors: [
+          Match.objectLike({
+            PathPattern: '/api/*',
+            ViewerProtocolPolicy: 'https-only',
+            CachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad', // CachingDisabled
+          }),
+        ],
       }),
     });
     dev.resourceCountIs('AWS::CloudFront::OriginAccessControl', 1);
@@ -226,5 +230,128 @@ describe('Auth + Web', () => {
     dev.hasResourceProperties('AWS::Location::APIKey', {
       Restrictions: Match.objectLike({ AllowActions: ['geo:GetMap*'] }),
     });
+  });
+});
+
+describe('P8 hardening', () => {
+  it('WAF WebACL (rate 300/5min + managed common + known bad inputs) on CloudFront in prod only', () => {
+    prod.hasResourceProperties('Custom::CloudFrontWebAcl', {
+      Name: 'freeroom-prod-edge',
+      RateLimit: 300,
+    });
+    prod.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({ WebACLId: Match.anyValue() }),
+    });
+    dev.resourceCountIs('Custom::CloudFrontWebAcl', 0);
+  });
+
+  it('prod: demo endpoints and dev auth cannot be enabled', () => {
+    const app = new App({ context: { 'aws:cdk:bundling-stacks': [] } });
+    expect(
+      () =>
+        new FreeRoomStack(app, 'FreeRoom-prod', {
+          stage: 'prod',
+          demoMode: true,
+          env: { account: '111111111111', region: 'us-east-1' },
+        }),
+    ).toThrow(/never be enabled in prod/);
+    const env = Object.values(prod.findResources('AWS::Lambda::Function'))
+      .map((f) => f as { Properties: { Environment?: { Variables?: Record<string, string> } } })
+      .map((f) => f.Properties.Environment?.Variables ?? {})
+      .filter((v) => v.TABLE_NAME);
+    expect(env.length).toBeGreaterThan(0);
+    for (const v of env) {
+      expect(v.NODE_ENV).not.toBe('development'); // the only value that enables dev auth
+      expect(v.DEMO_MODE ?? 'false').toBe('false');
+    }
+  });
+
+  it('IAM audit: no Resource "*" except AWS-required ListStreams / CloudFront invalidation', () => {
+    for (const t of [dev, prod]) {
+      for (const p of policies(t)) {
+        for (const s of p.Properties.PolicyDocument.Statement) {
+          const res = [(s as { Resource?: unknown }).Resource].flat();
+          if (!res.includes('*')) continue;
+          expect(actions(s).sort()).toSatisfy(
+            (a: string[]) =>
+              a.join() === 'dynamodb:ListStreams' ||
+              a.join() === 'cloudfront:CreateInvalidation,cloudfront:GetInvalidation',
+          );
+        }
+      }
+    }
+  });
+
+  it('no role but RevealFn has kms:Decrypt (incl. the GitHub deploy role)', () => {
+    const decrypters = policies(prod).filter((p) =>
+      p.Properties.PolicyDocument.Statement.some((s) => actions(s).includes('kms:Decrypt')),
+    );
+    expect(decrypters).toHaveLength(1);
+    expect(decrypters[0]!.Properties.Roles[0]!.Ref).toMatch(/RevealFn/);
+  });
+
+  it('GitHub OIDC deploy role: pinned to the repo (main for dev, prod environment for prod)', () => {
+    dev.hasResourceProperties('AWS::IAM::Role', {
+      AssumeRolePolicyDocument: {
+        Statement: [
+          Match.objectLike({
+            Condition: {
+              StringEquals: {
+                'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+                'token.actions.githubusercontent.com:sub':
+                  'repo:lakshmanlak07/freeroom:ref:refs/heads/main',
+              },
+            },
+          }),
+        ],
+      },
+    });
+    prod.hasResourceProperties('AWS::IAM::Role', {
+      AssumeRolePolicyDocument: {
+        Statement: [
+          Match.objectLike({
+            Condition: Match.objectLike({
+              StringEquals: Match.objectLike({
+                'token.actions.githubusercontent.com:sub':
+                  'repo:lakshmanlak07/freeroom:environment:prod',
+              }),
+            }),
+          }),
+        ],
+      },
+    });
+    // The provider is account-wide: created once (dev), imported by prod.
+    expect(Object.keys(prod.findResources('Custom::AWSCDKOpenIdConnectProvider'))).toHaveLength(0);
+  });
+
+  it('alarms → SNS: 5xx > 2%, every Lambda, sync failed twice, staleness > 60, DLQ > 0; dashboard', () => {
+    const names = Object.values(prod.findResources('AWS::CloudWatch::Alarm')).map(
+      (a) => (a as { Properties: { AlarmName: string } }).Properties.AlarmName,
+    );
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'freeroom-prod-Api5xxRate',
+        'freeroom-prod-SyncFailedTwice',
+        'freeroom-prod-ScheduleStale',
+        'freeroom-prod-StreamDlqNotEmpty',
+        'freeroom-prod-ApiFnErrors',
+        'freeroom-prod-RevealFnErrors',
+        'freeroom-prod-SweeperFnErrors',
+        'freeroom-prod-SyncFnErrors',
+        'freeroom-prod-OnChangeFnErrors',
+        'freeroom-prod-PreTokenFnErrors',
+      ]),
+    );
+    prod.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'freeroom-prod-ScheduleStale',
+      Threshold: 60,
+      TreatMissingData: 'breaching',
+    });
+    prod.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'freeroom-prod-Api5xxRate',
+      Threshold: 2,
+    });
+    prod.hasResourceProperties('AWS::CloudWatch::Dashboard', { DashboardName: 'FreeRoom-prod' });
+    prod.hasResourceProperties('AWS::SNS::Topic', Match.anyValue());
   });
 });

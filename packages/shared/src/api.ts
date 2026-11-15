@@ -109,7 +109,7 @@ export const RoomWithStatusSchema = RoomSchema.extend({
 });
 export type RoomWithStatus = z.infer<typeof RoomWithStatusSchema>;
 
-const csv = <T extends z.ZodTypeAny>(item: T) =>
+const csv = <T extends z.ZodType<unknown, string>>(item: T) =>
   z
     .string()
     .transform((s) => s.split(',').filter(Boolean))
@@ -229,7 +229,7 @@ export const ReservationEventSchema = z.object({
   /** Class details / alternatives for CONFLICTED + RELEASED. Never contains PII. */
   details: z
     .object({
-      class: z.record(z.unknown()).optional(),
+      class: z.record(z.string(), z.unknown()).optional(),
       alternatives: z.array(AlternativeRoomSchema).optional(),
     })
     .optional(),
@@ -306,7 +306,7 @@ export const SyncRunSchema = z.object({
   status: z.enum(['SUCCESS', 'PARTIAL', 'FAILED']),
   startedAt: IsoDateTime,
   durationMs: z.number().int(),
-  counts: z.record(z.number().int()),
+  counts: z.record(z.string(), z.number().int()),
 });
 export const SyncRunsResponseSchema = z.object({ runs: z.array(SyncRunSchema) });
 

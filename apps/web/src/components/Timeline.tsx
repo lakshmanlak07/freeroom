@@ -216,7 +216,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
               style={{ left: `${nowPct}%` }}
               aria-hidden
             >
-              <span className="absolute -bottom-4 -translate-x-1/2 rounded bg-amber px-1 text-[10px] font-bold text-white">
+              <span className="absolute -bottom-4 -translate-x-1/2 rounded bg-amber-ink px-1 text-[10px] font-bold text-white">
                 NOW
               </span>
             </div>

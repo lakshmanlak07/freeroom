@@ -3,6 +3,7 @@ packages:
   - services/*
   - apps/*
   - infra
+  - e2e
 allowBuilds:
   esbuild: true
   msw: false # postinstall only copies public/mockServiceWorker.js, which is committed

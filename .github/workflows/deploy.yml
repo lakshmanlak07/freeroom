@@ -1,0 +1,173 @@
+name: Deploy
+
+# main  → CI → deploy dev → Playwright smoke + Lighthouse against the dev URL
+# v* tag → CI → prod `cdk diff` (the plan)
+# Prod deploy = a manual run of this workflow (Actions → Deploy → Run workflow, ref = the tag).
+# That manual dispatch is the approval gate: GitHub Free can't put required reviewers on a
+# private repo's environment, and only collaborators with write access can dispatch.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy to PROD (e.g. v1.0.0)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && 'prod' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  ci:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+
+  deploy-dev:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC → AWS, no long-lived keys
+      contents: read
+    outputs:
+      web_url: ${{ steps.out.outputs.web_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy FreeRoom-dev
+        run: pnpm run deploy -- --stage dev -c "alarmEmail=${{ vars.ALARM_EMAIL }}"
+      - id: out
+        run: echo "web_url=$(jq -r '."FreeRoom-dev".WebUrl' infra/cdk-outputs.dev.json)" >> "$GITHUB_OUTPUT"
+
+  smoke-dev:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      BASE_URL: ${{ needs.deploy-dev.outputs.web_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @freeroom/e2e exec playwright install --with-deps chromium
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Load smoke-test logins (masked)
+        run: |
+          users="$(aws secretsmanager get-secret-value --secret-id freeroom/dev/test-users --query SecretString --output text)"
+          for p in $(jq -r '.[].password' <<<"$users"); do echo "::add-mask::$p"; done
+          echo "E2E_USERS=$(jq -c . <<<"$users")" >> "$GITHUB_ENV"
+      - name: Playwright smoke + axe
+        run: pnpm --filter @freeroom/e2e smoke
+      - name: Lighthouse (accessibility ≥ 95)
+        run: pnpm --filter @freeroom/e2e lighthouse
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-dev
+          path: |
+            e2e/playwright-report
+            e2e/lighthouse-summary.json
+          if-no-files-found: ignore
+
+  plan-prod:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: prod # the prod role trusts only this environment
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @freeroom/web build
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PROD_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: cdk diff (prod)
+        working-directory: infra
+        run: |
+          {
+            echo "## Prod plan for ${GITHUB_REF_NAME}"
+            echo "To deploy: Actions → Deploy → Run workflow → tag = ${GITHUB_REF_NAME}"
+            echo '```'
+            npx cdk diff -c stage=prod -c "alarmEmail=${{ vars.ALARM_EMAIL }}" 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-prod:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Only release tags reach prod
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a vX.Y.Z tag"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @freeroom/e2e exec playwright install --with-deps chromium
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PROD_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy FreeRoom-prod
+        run: pnpm run deploy -- --stage prod -c "alarmEmail=${{ vars.ALARM_EMAIL }}"
+      - name: Load smoke-test logins (masked)
+        run: |
+          users="$(aws secretsmanager get-secret-value --secret-id freeroom/prod/test-users --query SecretString --output text)"
+          for p in $(jq -r '.[].password' <<<"$users"); do echo "::add-mask::$p"; done
+          echo "E2E_USERS=$(jq -c . <<<"$users")" >> "$GITHUB_ENV"
+          echo "BASE_URL=$(jq -r '."FreeRoom-prod".WebUrl' infra/cdk-outputs.prod.json)" >> "$GITHUB_ENV"
+      - name: Playwright smoke + axe (prod)
+        run: pnpm --filter @freeroom/e2e smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-prod
+          path: e2e/playwright-report
+          if-no-files-found: ignore
