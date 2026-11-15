@@ -8,7 +8,15 @@ import { Sparkles, Wand2, X } from 'lucide-react';
 import { useState } from 'react';
 import { EQUIPMENT } from '@/components/Equipment';
 import { checkPeople } from '@/components/PeopleInput';
-import { campusDay, campusLocalToUtc, fmtDay, fmtRange, formatCampus } from '@/lib/time';
+import {
+  campusDay,
+  campusLocalToUtc,
+  fmtDay,
+  fmtRange,
+  formatCampus,
+  isDay,
+  isHm,
+} from '@/lib/time';
 
 export const EXAMPLES = [
   'Room for 6 with a projector near the library at 3pm',
@@ -66,7 +74,7 @@ export function SearchChips({ sp, set, buildings, onExample }: Props) {
       clear: { building: null },
     });
   }
-  if (get('date') && get('from') && get('to')) {
+  if (isDay(get('date')) && isHm(get('from')) && isHm(get('to'))) {
     const day = get('date');
     const range = fmtRange(
       campusLocalToUtc(`${day}T${get('from')}`),

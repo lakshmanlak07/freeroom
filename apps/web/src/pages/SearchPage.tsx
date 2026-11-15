@@ -10,7 +10,7 @@ import { RoomCard } from '@/components/RoomCard';
 import { PeopleInput } from '@/components/PeopleInput';
 import { SearchChips, filtersToParams } from '@/components/SearchChips';
 import { Button, inputClass } from '@/components/ui/button';
-import { addDays, campusDay, campusLocalToUtc } from '@/lib/time';
+import { addDays, campusDay, campusLocalToUtc, isDay, isHm } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
 const SORTS: { value: NonNullable<RoomSearchQuery['sort']>; label: string }[] = [
@@ -49,9 +49,10 @@ export function SearchPage() {
 
   const today = campusDay(new Date());
   const equipment = get('equipment').split(',').filter(Boolean) as Equipment[];
-  const date = get('date');
-  const from = get('from');
-  const to = get('to');
+  // Hand-edited links (?date=foo) fall back to 'any time' instead of crashing the page.
+  const date = isDay(get('date')) ? get('date') : '';
+  const from = isHm(get('from')) ? get('from') : '';
+  const to = isHm(get('to')) ? get('to') : '';
   const windowValid = !!(date && from && to && to > from);
   const params = {
     building: get('building') || undefined,

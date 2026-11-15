@@ -5,3 +5,4 @@ CLAUDE.md
 **/coverage/
 infra/cdk.out/
 .claude/
+e2e/lighthouse-*.json

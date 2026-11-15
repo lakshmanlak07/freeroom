@@ -1,4 +1,4 @@
-import { Compass, Construction } from 'lucide-react';
+import { Compass } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -14,20 +14,6 @@ export function NotFoundPage() {
             Find a free room
           </Link>
         }
-      />
-    </div>
-  );
-}
-
-/** Placeholder for screens built in P6 (map, my reservations, notifications, demo). */
-export function ComingSoon({ title }: { title: string }) {
-  return (
-    <div className="p-6">
-      <h1 className="mb-4 text-2xl font-bold">{title}</h1>
-      <EmptyState
-        icon={Construction}
-        title="Coming in the next build"
-        body="This screen lands with the claims and map work."
       />
     </div>
   );

@@ -27,7 +27,11 @@ export function LoginPage() {
   const { status, mode, signIn, signInDev, signUp, confirmSignUp } = useAuth();
   const config = useConfig();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+  // Keep the whole deep link (audit L4): rebook links carry ?start=&end=.
+  const loc = (
+    location.state as { from?: { pathname: string; search?: string; hash?: string } } | null
+  )?.from;
+  const from = loc ? `${loc.pathname}${loc.search ?? ''}${loc.hash ?? ''}` : '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');

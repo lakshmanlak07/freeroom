@@ -35,3 +35,9 @@ export function freeUntilLabel(freeUntil: string | null) {
     ? 'Free for the rest of the day'
     : `Free until ${fmtTime(d)}`;
 }
+
+/** URL params are user-editable: only well-formed values reach date math (audit L3). */
+export const isDay = (s: string | null | undefined): s is string =>
+  !!s && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s) && !Number.isNaN(Date.parse(s));
+export const isHm = (s: string | null | undefined): s is string =>
+  !!s && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);

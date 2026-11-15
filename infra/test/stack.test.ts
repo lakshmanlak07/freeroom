@@ -241,6 +241,13 @@ describe('Auth + Web', () => {
     });
   });
 
+  it('audit L2: Permissions-Policy allows only same-origin geolocation', () => {
+    const p = JSON.stringify(dev.findResources('AWS::CloudFront::ResponseHeadersPolicy'));
+    expect(p).toContain('Permissions-Policy');
+    expect(p).toContain('geolocation=(self)');
+    expect(p).toMatch(/camera=()/);
+  });
+
   it('Location Maps v2: key limited to basemap reads from our origin; no legacy map resource', () => {
     dev.hasResourceProperties('AWS::Location::APIKey', {
       Restrictions: Match.objectLike({

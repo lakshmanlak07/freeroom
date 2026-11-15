@@ -28,7 +28,15 @@ import { StatusChip } from '@/components/StatusChip';
 import { TextView, Timeline } from '@/components/Timeline';
 import type { ScheduleItem } from '@/components/TimelineBlock';
 import { Button, inputClass } from '@/components/ui/button';
-import { addDays, campusDay, campusLocalToUtc, fmtDay, fmtDuration, useNow } from '@/lib/time';
+import {
+  addDays,
+  campusDay,
+  campusLocalToUtc,
+  fmtDay,
+  fmtDuration,
+  isDay,
+  useNow,
+} from '@/lib/time';
 import { cn } from '@/lib/utils';
 
 const SLOT = 15 * 60_000;
@@ -70,7 +78,7 @@ export function RoomPage() {
   const [sp, setSp] = useSearchParams();
   const now = useNow(30_000);
   const today = campusDay(now);
-  const day = sp.get('date') ?? today;
+  const day = isDay(sp.get('date')) ? sp.get('date')! : today;
   const [view, setView] = useState<'timeline' | 'text'>(readView);
   // "Rebook here" (BR-9 alternatives) links here with ?start=&end= to open the sheet prefilled.
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(() => {

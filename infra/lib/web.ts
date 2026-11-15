@@ -92,6 +92,17 @@ export class Web extends Construct {
         },
         xssProtection: { protection: true, modeBlock: true, override: true },
       },
+      // Only geolocation (the map's opt-in Near me) is ever used, and only by our own origin.
+      customHeadersBehavior: {
+        customHeaders: [
+          {
+            header: 'Permissions-Policy',
+            value:
+              'geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()',
+            override: true,
+          },
+        ],
+      },
     });
 
     this.headers = headers;

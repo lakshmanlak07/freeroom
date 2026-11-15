@@ -36,6 +36,7 @@ export default function MapPage() {
   const mapEl = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
+  const meDot = useRef<maplibregl.Marker | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const scheme: ColorScheme = useTheme().theme === 'dark' ? 'Dark' : 'Light';
   const schemeRef = useRef(scheme);
@@ -91,6 +92,7 @@ export default function MapPage() {
     m.once('load', () => {
       clearTimeout(timer);
       m.resize();
+      setFailed(false); // audit M8: a slow-but-successful load clears the timeout overlay
       setReady(true);
     });
     m.on('error', (e) => {
@@ -152,15 +154,24 @@ export default function MapPage() {
   /** Opt-in; the position never leaves the browser. */
   const nearMe = () => {
     setGeoError(null);
+    if (!('geolocation' in navigator)) {
+      setGeoError('This browser can’t share your location — pick a building instead.');
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const p = { lat: coords.latitude, lng: coords.longitude };
         setMe(p);
-        const dot = document.createElement('div');
-        dot.className = 'size-4 rounded-full border-2 border-white bg-slate shadow';
-        dot.setAttribute('aria-hidden', 'true');
-        new maplibregl.Marker({ element: dot }).setLngLat([p.lng, p.lat]).addTo(map.current!);
-        map.current?.flyTo({ center: [p.lng, p.lat], zoom: 16 });
+        const m = map.current;
+        if (!m) return; // map was re-initialised or left while we waited
+        if (!meDot.current) {
+          const dot = document.createElement('div');
+          dot.className = 'size-4 rounded-full border-2 border-white bg-slate shadow';
+          dot.setAttribute('aria-hidden', 'true');
+          meDot.current = new maplibregl.Marker({ element: dot });
+        }
+        meDot.current.setLngLat([p.lng, p.lat]).addTo(m);
+        m.flyTo({ center: [p.lng, p.lat], zoom: 16 });
       },
       () => setGeoError('Location is off or blocked — you can still pick a building.'),
       { enableHighAccuracy: true, timeout: 10_000 },

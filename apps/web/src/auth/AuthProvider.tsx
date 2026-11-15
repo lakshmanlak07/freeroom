@@ -13,6 +13,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, useLocation } from 'react-router';
 import { ApiError, createApi, type Api } from '../api/client';
 import { useConfig, usesCognito, type AppConfig } from '../config';
@@ -73,6 +74,8 @@ function amplify(config: AppConfig) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const config = useConfig();
+  // Audit M4: query keys don't carry the user, so a new session must start from an empty cache.
+  const queryClient = useQueryClient();
   const mode = usesCognito(config) ? 'cognito' : 'dev';
   const [devUser, setDevUser] = useState<string | null>(() =>
     mode === 'dev' ? store.get() : null,
@@ -146,12 +149,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api,
     refresh,
     async signInDev(userId) {
+      queryClient.clear();
       store.set(userId);
       setStatus('loading');
       setDevUser(userId); // refresh runs via effect
     },
     async signIn(email, password) {
       const auth = await amplify(config);
+      queryClient.clear();
       const r = await auth.signIn({ username: email, password });
       if (!r.isSignedIn) throw new Error(`Additional step required: ${r.nextStep.signInStep}`);
       await refresh();
@@ -167,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signOut() {
       if (mode === 'cognito') await (await amplify(config)).signOut();
+      queryClient.clear();
       store.set(null);
       setDevUser(null);
       setMe(null);
