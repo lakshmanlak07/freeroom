@@ -8,15 +8,18 @@ import { keys } from '../src/data/keys';
 import { queryAll } from '../src/data/db';
 import { getReservation } from '../src/data/reservations';
 import { mapRecord } from '../src/notify/onChange';
+import { createLogger } from '../src/logger';
 import { setupTestApp } from './helpers';
 
 const NOW = new Date('2026-11-16T12:00:00Z');
 type T = Awaited<ReturnType<typeof setupTestApp>>;
 let t: T;
+const lines: string[] = [];
 beforeAll(async () => {
   t = await setupTestApp({
     now: NOW,
     deps: {
+      logger: createLogger({}, (l) => lines.push(l)),
       features: { invites: true },
       // Many bookings by one host in this suite; production quotas are unchanged.
       limits: { ...DEFAULT_ROLE_LIMITS, FACULTY: { maxActive: 50, maxDurationMinutes: 240 } },
@@ -51,6 +54,17 @@ describe('invite links', () => {
     const items = (await t.db.doc.send(new ScanCommand({ TableName: t.db.table }))).Items ?? [];
     expect(JSON.stringify(items)).not.toContain(token);
     expect(items.some((i) => i.PK === `INVITE#${hashInviteToken(token)}`)).toBe(true);
+  });
+
+  it('the token never reaches the logs (preview, join, calendar)', async () => {
+    const id = await booking();
+    const { token } = (await invite(id)).body as { token: string };
+    await anon(`/invites/${token}`);
+    await anon(`/invites/${token}/calendar.ics`);
+    await t.req('tutor1', 'POST', `/invites/${token}/join`);
+    const all = lines.join('\n');
+    expect(all).toContain('/invites/:token'); // the request was logged…
+    expect(all).not.toContain(token); // …without the capability
   });
 
   it('only the owner can create or revoke a link (others get 404)', async () => {

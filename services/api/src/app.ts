@@ -119,7 +119,8 @@ export function createApp(deps: AppDeps) {
     await withCorrelationId(id, next);
     c.get('log').info('http', {
       method: c.req.method,
-      path: c.req.path,
+      // An invite token in the URL is a bearer capability: never log it.
+      path: c.req.path.replace(/^\/invites\/[^/]+/, '/invites/:token'),
       status: c.res.status,
       ms: Date.now() - t0,
     });
