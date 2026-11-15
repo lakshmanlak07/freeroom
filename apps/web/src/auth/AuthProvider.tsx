@@ -14,10 +14,11 @@ import {
   type ReactNode,
 } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { createApi, type Api } from '../api/client';
+import { ApiError, createApi, type Api } from '../api/client';
 import { useConfig, usesCognito, type AppConfig } from '../config';
+import { onMeFailure, signInPathFor } from './session';
 
-type Status = 'loading' | 'signedOut' | 'needsRegistration' | 'ready';
+type Status = 'loading' | 'signedOut' | 'needsRegistration' | 'ready' | 'error';
 
 interface AuthState {
   status: Status;
@@ -105,13 +106,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('signedOut');
       return;
     }
-    const profile = await api.me();
-    setMe(profile);
-    setStatus(profile ? 'ready' : 'needsRegistration');
+    // Session exists (e.g. restored on a hard reload / deep link): load the profile, retrying
+    // transient failures instead of bouncing the user to /welcome.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const profile = await api.me();
+        setMe(profile);
+        setStatus(profile ? 'ready' : 'needsRegistration');
+        return;
+      } catch (e) {
+        const http = e instanceof ApiError ? e.status : undefined;
+        const next = onMeFailure(attempt, http);
+        if (next === 'retry') {
+          if (mode === 'cognito' && http === 401) {
+            await amplify(config)
+              .then((a) => a.fetchAuthSession({ forceRefresh: true }))
+              .catch(() => undefined);
+          }
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          continue;
+        }
+        if (next === 'signedOut') {
+          setMe(null);
+          setStatus('signedOut');
+        } else setStatus('error');
+        return;
+      }
+    }
   }, [api, config, devUser, mode]);
 
   useEffect(() => {
-    refresh().catch(() => setStatus('signedOut'));
+    refresh().catch(() => setStatus('error')); // never silently sign out a restored session
   }, [refresh]);
 
   const value: AuthState = {
@@ -164,10 +189,30 @@ export function FullPageSpinner() {
 
 /** Signed out → /login. Signed in but unregistered → /register. */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, refresh } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <FullPageSpinner />;
-  if (status === 'signedOut') return <Navigate to="/welcome" replace state={{ from: location }} />;
+  if (status === 'error') {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-cream p-6" role="alert">
+        <div className="max-w-sm text-center">
+          <p className="text-lg font-semibold">We couldn’t load your profile</p>
+          <p className="mt-1 text-sm text-muted">You’re still signed in. Check your connection.</p>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="mt-4 rounded-xl bg-brown px-4 py-2 font-semibold text-white"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'signedOut') {
+    // Deep links come back here after sign-in (LoginPage honours state.from).
+    return <Navigate to={signInPathFor(location.pathname)} replace state={{ from: location }} />;
+  }
   if (status === 'needsRegistration') return <Navigate to="/register" replace />;
   return <>{children}</>;
 }

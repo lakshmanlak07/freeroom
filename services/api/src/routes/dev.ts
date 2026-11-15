@@ -8,7 +8,6 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Ctx, Env } from '../app';
 import { clearBusyCache } from '../availability';
-import { keys } from '../data/keys';
 import { getReservation } from '../data/reservations';
 import { lastDemoReset, resetDemo } from '../demoReset';
 import { AppError, parse } from '../errors';

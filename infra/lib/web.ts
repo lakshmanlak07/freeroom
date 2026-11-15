@@ -16,7 +16,7 @@ import {
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { HttpOrigin, S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
-import { CfnAPIKey, CfnMap } from 'aws-cdk-lib/aws-location';
+import { CfnAPIKey } from 'aws-cdk-lib/aws-location';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, CacheControl, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import {
@@ -39,7 +39,6 @@ export class Web extends Construct {
   readonly bucket: Bucket;
   readonly distribution: Distribution;
   readonly url: string;
-  readonly mapName: string;
   readonly mapApiKey: string;
   private headers!: ResponseHeadersPolicy;
 
@@ -66,8 +65,10 @@ export class Web extends Construct {
       "style-src 'self' 'unsafe-inline'", // MapLibre sets inline styles
       `img-src 'self' data: blob: https://maps.geo.${region}.amazonaws.com`,
       "font-src 'self' data:",
-      `connect-src 'self' https://*.execute-api.${region}.amazonaws.com https://cognito-idp.${region}.amazonaws.com https://maps.geo.${region}.amazonaws.com`,
-      'worker-src blob:',
+      // API is same-origin (/api/*); Cognito for sign-in; Location v2 style/tiles/glyphs/sprites.
+      `connect-src 'self' https://cognito-idp.${region}.amazonaws.com https://maps.geo.${region}.amazonaws.com`,
+      // maplibre's worker is a hashed same-origin asset; blob: for its classic-worker fallback.
+      "worker-src 'self' blob:",
       'child-src blob:',
       "object-src 'none'",
       "base-uri 'self'",
@@ -118,18 +119,15 @@ export class Web extends Construct {
     });
     this.url = `https://${this.distribution.distributionDomainName}`;
 
-    // ---- Amazon Location: map + API key limited to map reads from our origins.
-    const map = new CfnMap(this, 'Map', {
-      mapName: `freeroom-${props.stage}`,
-      configuration: { style: 'VectorEsriNavigation' },
-    });
-    this.mapName = map.mapName;
+    // Amazon Location Maps API v2: no map resource; the key reads the AWS-provided basemap.
     const key = new CfnAPIKey(this, 'MapKey', {
       keyName: `freeroom-${props.stage}-maps`,
       noExpiry: true,
+      // Location refuses restriction changes on a recently used key without this (v1 → v2 move).
+      forceUpdate: true,
       restrictions: {
-        allowActions: ['geo:GetMap*'],
-        allowResources: [map.attrArn],
+        allowActions: ['geo-maps:GetTile', 'geo-maps:GetStaticMap'],
+        allowResources: [`arn:aws:geo-maps:${region}::provider/default`],
         allowReferers: [`${this.url}/*`, ...devOrigins(props.stage, '/*')],
       },
     });
@@ -199,7 +197,6 @@ export class Web extends Construct {
         Source.jsonData('config.json', {
           ...config,
           region: Stack.of(this).region,
-          mapName: this.mapName,
           mapApiKey: this.mapApiKey,
         }),
       ],

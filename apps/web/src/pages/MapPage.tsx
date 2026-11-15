@@ -1,31 +1,25 @@
-/** F3: campus map. MapLibre GL + Amazon Location (API key) — or a free OSM style in mock/local mode. */
+/** F3: campus map. MapLibre GL + Amazon Location Maps v2 (API key) — or free OSM in mock/local mode. */
 import { distanceMeters } from '@freeroom/domain';
 import type { Building } from '@freeroom/shared';
 import { useQuery } from '@tanstack/react-query';
-import { List, LocateFixed, MapPin } from 'lucide-react';
+import { List, LocateFixed, MapPin, RotateCcw, TriangleAlert } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+// maplibre v6 otherwise resolves its worker relative to the bundled chunk, a file Vite never
+// emits (403 on CloudFront → blank map). Ship it as a hashed asset and point maplibre at it.
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, Skeleton } from '@/components/EmptyState';
 import { RoomCard } from '@/components/RoomCard';
 import { Button } from '@/components/ui/button';
 import { useConfig } from '@/config';
+import { mapStyleFor, redactKey } from '@/lib/mapStyle';
 import { cn } from '@/lib/utils';
 
+maplibregl.setWorkerUrl(workerUrl);
 const CENTER: [number, number] = [-72.5276, 42.3918];
-const OSM_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-};
+const STYLE_TIMEOUT_MS = 8000;
 
 /** Color AND text label (the % is printed on the marker) — never color alone. */
 export const tier = (pct: number) =>
@@ -63,44 +57,54 @@ export default function MapPage() {
   }, [buildings.data, me]);
   const current = list.find((b) => b.buildingId === selected);
 
-  // Init once. Amazon Location when deployed (key restricted to map reads on our origins).
+  // Init (and re-init on Retry). Amazon Location v2 when deployed; the key is restricted to
+  // geo-maps reads from our origins and rides on the style URL.
+  const [attempt, setAttempt] = useState(0);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const useLocation =
-        import.meta.env.VITE_USE_MOCKS !== 'true' && config.mapApiKey && config.mapName;
-      const opts: maplibregl.MapOptions = useLocation
-        ? {
-            container: mapEl.current!,
-            style: `https://maps.geo.${config.region}.amazonaws.com/maps/v0/maps/${config.mapName}/style-descriptor`,
-            // The key is restricted to map reads from our origins; it rides on every Location request.
-            transformRequest: (url: string) =>
-              url.startsWith(`https://maps.geo.${config.region}.amazonaws.com`)
-                ? {
-                    url: `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(config.mapApiKey!)}`,
-                  }
-                : { url },
-          }
-        : { container: mapEl.current!, style: OSM_STYLE };
-      if (cancelled) return;
-      map.current = new maplibregl.Map({
-        ...opts,
-        center: CENTER,
-        zoom: 15.4,
-        attributionControl: { compact: true },
-      });
-      map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    })();
+    const el = mapEl.current!;
+    setReady(false);
+    setFailed(false);
+    const m = new maplibregl.Map({
+      container: el,
+      style: mapStyleFor(config, { mocks: import.meta.env.VITE_USE_MOCKS === 'true' }),
+      center: CENTER,
+      zoom: 15.4,
+      attributionControl: { compact: true },
+    });
+    map.current = m;
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    const timer = setTimeout(() => {
+      if (!m.isStyleLoaded()) {
+        setFailed(true);
+        setShowList(true); // the buildings list stays fully usable without the map
+      }
+    }, STYLE_TIMEOUT_MS);
+    m.once('load', () => {
+      clearTimeout(timer);
+      m.resize();
+      setReady(true);
+    });
+    m.on('error', (e) => {
+      const msg = e.error?.message ?? String(e.error ?? 'map error');
+      console.error('[map]', redactKey(msg)); // never log the API key
+    });
+    // The side panel / route mount can change the container size after init.
+    const ro = new ResizeObserver(() => m.resize());
+    ro.observe(el);
     return () => {
-      cancelled = true;
-      map.current?.remove();
+      clearTimeout(timer);
+      ro.disconnect();
+      m.remove();
       map.current = null;
     };
-  }, [config]);
+  }, [config, attempt]);
 
-  // Markers are real <button>s: focusable, labelled, keyboard-activatable.
+  // Markers are real <button>s: focusable, labelled, keyboard-activatable. Added once the style
+  // has loaded, re-added when the data or selection changes.
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !ready) return;
     markers.current.forEach((m) => m.remove());
     markers.current = (buildings.data?.buildings ?? []).map((b) => {
       const el = document.createElement('button');
@@ -117,7 +121,7 @@ export default function MapPage() {
       el.onclick = () => select(b);
       return new maplibregl.Marker({ element: el }).setLngLat([b.lng, b.lat]).addTo(map.current!);
     });
-  }, [buildings.data, selected, map.current]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [buildings.data, selected, ready]);
 
   const select = (b: Building) => {
     setSelected(b.buildingId);
@@ -183,6 +187,21 @@ export default function MapPage() {
           >
             {geoError}
           </p>
+        )}
+        {failed && (
+          <div
+            role="alert"
+            className="absolute inset-x-3 top-1/3 mx-auto max-w-sm rounded-2xl border border-line bg-white p-4 text-center shadow-card"
+          >
+            <TriangleAlert className="mx-auto size-6 text-amber-ink" aria-hidden />
+            <p className="mt-2 font-semibold">The map didn’t load</p>
+            <p className="mt-1 text-sm text-muted">
+              Every building is still in the list on the right. You can try the map again.
+            </p>
+            <Button className="mt-3" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+              <RotateCcw className="size-4" aria-hidden /> Retry
+            </Button>
+          </div>
         )}
       </section>
 

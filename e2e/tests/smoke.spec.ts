@@ -95,10 +95,45 @@ test('claim → approve (share contact) → reveal', async ({ browser }) => {
   await claimer.context().close();
 });
 
-test('map loads with building markers', async () => {
+test('map renders: style 200, tiles 200, canvas painted, building markers', async () => {
+  const usesLocation = await owner
+    .evaluate(async () => {
+      const r = await fetch('/config.json', { cache: 'no-store' });
+      const c = (await r.json().catch(() => ({}))) as { mapApiKey?: string };
+      return !!c.mapApiKey;
+    })
+    .catch(() => false);
+  const errors: string[] = [];
+  owner.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await owner.addInitScript(() =>
+    document.addEventListener('securitypolicyviolation', (e) =>
+      console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI}`),
+    ),
+  );
+  const style = usesLocation
+    ? owner.waitForResponse((r) => r.url().includes('/v2/styles/Standard/descriptor'))
+    : null;
+  const tile = owner.waitForResponse(
+    (r) =>
+      /maps\.geo\.[a-z0-9-]+\.amazonaws\.com\/v2\/tiles\/|tile\.openstreetmap\.org/.test(r.url()) &&
+      r.status() === 200,
+  );
   await owner.goto('/map');
+  if (style) expect((await style).status()).toBe(200);
+  await tile;
   await expect(owner.getByRole('button', { name: /% of rooms free/ }).first()).toBeVisible();
-  await expect(owner.locator('.maplibregl-canvas')).toBeVisible();
+  const canvas = owner.locator('canvas.maplibregl-canvas');
+  await expect(canvas).toBeVisible();
+  const box = (await canvas.boundingBox())!;
+  expect(box.width).toBeGreaterThan(200);
+  expect(box.height).toBeGreaterThan(200);
+  await owner.waitForTimeout(1500); // let tiles paint
+  // A blank WebGL canvas compresses to a few KB; a painted basemap is far larger.
+  expect((await canvas.screenshot()).length, 'map canvas looks blank').toBeGreaterThan(15_000);
+  expect(errors.filter((e) => /CSP violation|maplibre|\[map\]/i.test(e))).toEqual([]);
+  await expect(owner.getByText('The map didn’t load')).toHaveCount(0);
 });
 
 test.afterAll(async () => {

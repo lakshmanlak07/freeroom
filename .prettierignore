@@ -4,3 +4,4 @@ CLAUDE.md
 **/dist/
 **/coverage/
 infra/cdk.out/
+.claude/

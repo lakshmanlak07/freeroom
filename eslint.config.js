@@ -4,7 +4,15 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/cdk.out/**', '**/node_modules/**'] },
+  {
+    ignores: [
+      '**/.claude/**',
+      '**/dist/**',
+      '**/coverage/**',
+      '**/cdk.out/**',
+      '**/node_modules/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: { ...globals.node } } },

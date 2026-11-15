@@ -241,10 +241,18 @@ describe('Auth + Web', () => {
     });
   });
 
-  it('Location key is limited to map reads on our map', () => {
+  it('Location Maps v2: key limited to basemap reads from our origin; no legacy map resource', () => {
     dev.hasResourceProperties('AWS::Location::APIKey', {
-      Restrictions: Match.objectLike({ AllowActions: ['geo:GetMap*'] }),
+      Restrictions: Match.objectLike({
+        AllowActions: ['geo-maps:GetTile', 'geo-maps:GetStaticMap'],
+        AllowResources: [Match.stringLikeRegexp('^arn:aws:geo-maps:.*::provider/default$')],
+      }),
     });
+    dev.resourceCountIs('AWS::Location::Map', 0);
+    // maplibre's worker is a same-origin asset; the API is same-origin, so no execute-api wildcard.
+    const csp = JSON.stringify(dev.findResources('AWS::CloudFront::ResponseHeadersPolicy'));
+    expect(csp).toContain("worker-src 'self' blob:");
+    expect(csp).not.toContain('execute-api');
   });
 });
 

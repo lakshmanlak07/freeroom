@@ -6,7 +6,6 @@ export interface AppConfig {
   region: string;
   userPoolId?: string;
   clientId?: string;
-  mapName?: string;
   mapApiKey?: string;
   demoMode: boolean;
   /** Prod only: the public demo site for the landing page's "Try the live demo". */
