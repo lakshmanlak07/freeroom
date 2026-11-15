@@ -38,6 +38,9 @@ export function freeUntilLabel(freeUntil: string | null) {
 
 /** URL params are user-editable: only well-formed values reach date math (audit L3). */
 export const isDay = (s: string | null | undefined): s is string =>
-  !!s && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s) && !Number.isNaN(Date.parse(s));
+  !!s &&
+  /^\d{4}-\d{2}-\d{2}$/.test(s) &&
+  !Number.isNaN(Date.parse(s)) &&
+  new Date(s).toISOString().slice(0, 10) === s; // rejects rolled-over dates like 2026-02-31
 export const isHm = (s: string | null | undefined): s is string =>
   !!s && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);

@@ -45,12 +45,13 @@ export const unwrapSpaces = (json: unknown): RawSpace[] =>
  * The wrapper present with no `reservation` list is a genuinely empty day.
  */
 export const unwrapReservations = (json: unknown): RawReservation[] => {
-  const wrapper = (json as { reservations?: { reservation?: RawReservation[] } } | null)
-    ?.reservations;
-  if (!wrapper || typeof wrapper !== 'object') {
+  if (!json || typeof json !== 'object' || !('reservations' in json)) {
     throw new Error('25Live: unexpected reservations payload (missing "reservations")');
   }
-  return wrapper.reservation ?? [];
+  // XML-to-JSON renders an empty day as "", null or {}: all mean "no classes".
+  const wrapper = (json as { reservations?: { reservation?: RawReservation[] } | '' | null })
+    .reservations;
+  return (wrapper && typeof wrapper === 'object' && wrapper.reservation) || [];
 };
 
 // TODO(25live): confirm feature names used by UMass.

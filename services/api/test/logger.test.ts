@@ -34,12 +34,14 @@ describe('logger redaction', () => {
       phoneNumber: '+1 413 555 0100',
       userEmail: 'a@b.edu',
       err: new Error('lookup failed for jane.doe@umass.edu / 413-555-0100'),
+      when: new Error('sync failed for ROOM#CS-0101 on 2026-11-15T10:00:00Z'),
       deep,
     }) as Record<string, unknown>;
     expect(out.phoneNumber).toBe('[REDACTED]');
     expect(out.userEmail).toBe('[REDACTED]');
     expect(JSON.stringify(out.err)).not.toMatch(/umass.edu|555/);
     expect(JSON.stringify(out.deep)).not.toContain('leak');
+    expect(JSON.stringify(out.when)).toContain('2026-11-15T10:00:00Z'); // dates/ids stay readable
   });
 
   it('writes one JSON line with correlation id from child loggers', () => {

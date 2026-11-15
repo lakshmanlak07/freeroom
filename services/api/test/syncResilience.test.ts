@@ -68,6 +68,8 @@ describe('sync resilience (BR-1)', () => {
     expect(() => unwrapReservations({ unexpected: true })).toThrow();
     expect(() => unwrapReservations(null)).toThrow();
     expect(unwrapReservations({ reservations: {} })).toEqual([]); // genuinely empty is fine
+    expect(unwrapReservations({ reservations: '' })).toEqual([]);
+    expect(unwrapReservations({ reservations: null })).toEqual([]);
   });
 });
 

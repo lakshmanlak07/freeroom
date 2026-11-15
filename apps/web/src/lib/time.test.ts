@@ -8,7 +8,16 @@ describe('URL param guards (audit L3)', () => {
     expect(isHm('23:59')).toBe(true);
   });
   it('rejects garbage that used to crash the page', () => {
-    for (const bad of ['foo', '', null, undefined, '2026-13-01', '2026-11-32', '17/11/2026'])
+    for (const bad of [
+      'foo',
+      '',
+      null,
+      undefined,
+      '2026-13-01',
+      '2026-11-32',
+      '2026-02-31',
+      '17/11/2026',
+    ])
       expect(isDay(bad)).toBe(false);
     for (const bad of ['9:30', '24:00', '12:60', 'noon', null]) expect(isHm(bad)).toBe(false);
   });

@@ -1,10 +1,40 @@
 /** Logged-out landing: vertical gradient hero, pitch, sign in / try the demo, three feature cards. */
-import { BookOpen, CalendarPlus, DoorOpen, Handshake, Search, UserRound } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  BookOpen,
+  CalendarPlus,
+  DoorOpen,
+  Handshake,
+  LockKeyhole,
+  Search,
+  ShieldCheck,
+  Swords,
+  UserRound,
+} from 'lucide-react';
 import { Link, Navigate } from 'react-router';
 import { useAuth } from '@/auth/AuthProvider';
 import { buttonVariants } from '@/components/ui/button';
 import { useConfig } from '@/config';
 import { cn } from '@/lib/utils';
+
+/** "How it works": each claim is backed by a named test in the repo. */
+const DEPTH = [
+  {
+    Icon: LockKeyhole,
+    title: 'No double booking, ever',
+    body: 'Every 15-minute slot is a lock item written in one DynamoDB transaction. Tested with 50 parallel requests for the same slot: exactly 1 wins, 49 get SLOT_TAKEN.',
+  },
+  {
+    Icon: Swords,
+    title: 'Classes always win',
+    body: 'When 25Live adds a class over a booking, the sync releases it in one transaction and the holder is offered 3 free alternatives nearby.',
+  },
+  {
+    Icon: ShieldCheck,
+    title: 'Private by design',
+    body: 'Contact details are KMS-encrypted; only one Lambda can decrypt them, and only after the holder approves your request. IDs are stored as HMACs.',
+  },
+];
 
 const FEATURES = [
   {
@@ -25,8 +55,22 @@ const FEATURES = [
 ];
 
 export function LandingPage() {
-  const { status } = useAuth();
+  const { status, api } = useAuth();
   const config = useConfig();
+  // Live proof on the first screen: public, cached 10s server-side, refreshed every 30s.
+  const live = useQuery({
+    queryKey: ['landing-buildings'],
+    queryFn: api.buildings,
+    refetchInterval: 30_000,
+    enabled: status !== 'ready',
+  });
+  const counts = live.data?.buildings.reduce(
+    (a, b) => ({
+      free: a.free + Math.round((b.freePct * b.roomCount) / 100),
+      all: a.all + b.roomCount,
+    }),
+    { free: 0, all: 0 },
+  );
   if (status === 'ready') return <Navigate to="/" replace />;
   return (
     <div className="min-h-dvh bg-cream">
@@ -47,39 +91,50 @@ export function LandingPage() {
             See every free room on campus right now, reserve it in two taps, and never get kicked
             out by a class you didn’t know about.
           </p>
+          <p className="mx-auto mt-5 inline-flex min-h-9 items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-sm font-semibold">
+            <span className="relative flex size-2.5" aria-hidden>
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-free opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-free" />
+            </span>
+            <span aria-live="polite">
+              {counts && counts.all
+                ? `${counts.free} of ${counts.all} rooms free right now on campus`
+                : 'Checking which rooms are free right now…'}
+            </span>
+          </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              to="/login"
-              className={cn(
-                buttonVariants({ size: 'lg' }),
-                'bg-surface text-brown-ink hover:bg-cream',
-              )}
-            >
-              Sign in
-            </Link>
             {config.demoMode && (
               <Link
                 to="/login"
                 state={{ demo: true }}
                 className={cn(
-                  buttonVariants({ size: 'lg', variant: 'light' }),
-                  'ring-1 ring-white/60',
+                  buttonVariants({ size: 'lg' }),
+                  'bg-white text-[#7b3f00] shadow-lg hover:bg-white/90', // white in both themes: the one obvious CTA,
                 )}
               >
-                Try the demo
+                Try the live demo →
               </Link>
             )}
             {!config.demoMode && config.demoUrl && (
               <a
                 href={config.demoUrl}
                 className={cn(
-                  buttonVariants({ size: 'lg', variant: 'light' }),
-                  'ring-2 ring-white/70',
+                  buttonVariants({ size: 'lg' }),
+                  'bg-white text-[#7b3f00] shadow-lg hover:bg-white/90', // white in both themes: the one obvious CTA,
                 )}
               >
                 Try the live demo →
               </a>
             )}
+            <Link
+              to="/login"
+              className={cn(
+                buttonVariants({ size: 'lg', variant: 'light' }),
+                'ring-1 ring-white/60',
+              )}
+            >
+              Sign in
+            </Link>
           </div>
           {!config.demoMode && config.demoUrl && (
             <p className="mt-3 text-sm text-white/85">
@@ -93,7 +148,7 @@ export function LandingPage() {
       <main className="mx-auto -mt-24 max-w-5xl px-6 pb-16">
         <div
           aria-hidden
-          className="mx-auto mb-10 max-w-3xl rounded-2xl border border-line bg-surface p-4 shadow-card"
+          className="mx-auto mb-10 hidden max-w-3xl rounded-2xl border border-line bg-surface p-4 shadow-card sm:block"
         >
           <p className="mb-2 text-xs font-semibold text-muted">LGRT 0101 · today</p>
           <div className="relative h-14 rounded-xl bg-free-50">
@@ -122,6 +177,23 @@ export function LandingPage() {
             </li>
           ))}
         </ul>
+        <section aria-labelledby="how" className="mt-14">
+          <h2 id="how" className="text-center text-2xl font-bold">
+            How it works
+          </h2>
+          <p className="mt-1 text-center text-sm text-muted">
+            Serverless on AWS. Each guarantee below is enforced on the server and covered by tests.
+          </p>
+          <ul className="mt-6 grid gap-4 md:grid-cols-3">
+            {DEPTH.map(({ Icon, title, body }) => (
+              <li key={title} className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+                <Icon className="size-6 text-brown-ink" aria-hidden />
+                <h3 className="mt-3 text-lg font-bold">{title}</h3>
+                <p className="mt-1 text-sm text-muted">{body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
         <p className="mt-10 text-center text-xs text-muted">
           FreeRoom reservations are informal and student-run — not an official university booking.
           {config.demoMode && ' This deployment shows demo data.'}

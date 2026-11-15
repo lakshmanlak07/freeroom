@@ -4,7 +4,8 @@ const REDACT_KEY =
   /universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|x-dev-user|enc$/i;
 // PII that can hide inside free text (error messages).
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-const PHONE = /\+?\d[\d\s().-]{6,}\d/g;
+// Phone-shaped (413-555-0100, (413) 555 0100, +1 413 555 0100) — not ISO dates or ids.
+const PHONE = /(\+?\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g;
 const scrub = (s: string) => s.replace(EMAIL, '[REDACTED]').replace(PHONE, '[REDACTED]');
 
 export function redact(value: unknown, depth = 0): unknown {
