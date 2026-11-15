@@ -19,6 +19,8 @@ const stack = new FreeRoomStack(app, `FreeRoom-${stage}`, {
   wafRateLimit: ctx('wafRateLimit') ? Number(ctx('wafRateLimit')) : undefined,
   githubRepo: ctx('githubRepo') ?? 'lakshmanlak07/freeroom',
   githubOidc: ctx('githubOidc') === 'true',
+  // Natural-language search via Bedrock (cdk.json default on); the parser works without it.
+  nlModelId: ctx('nlBedrock') === 'false' ? undefined : (ctx('nlModelId') ?? undefined),
   // Prod: its own bootstrap (cdk bootstrap --qualifier frprod --toolkit-stack-name CDKToolkit-frprod).
   synthesizer: new DefaultStackSynthesizer({ qualifier: bootstrapQualifier(stage) }),
   // us-east-2: the hackathon AWS free-plan project is SCP-locked to Ohio (us-east-1 calls are

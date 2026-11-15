@@ -1,12 +1,13 @@
 import type { Equipment, RoomSearchQuery } from '@freeroom/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { RotateCcw, SearchX, SlidersHorizontal, TriangleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, Skeleton } from '@/components/EmptyState';
 import { EQUIPMENT } from '@/components/Equipment';
 import { RoomCard } from '@/components/RoomCard';
+import { SearchChips, filtersToParams } from '@/components/SearchChips';
 import { Button, inputClass } from '@/components/ui/button';
 import { addDays, campusDay, campusLocalToUtc } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,20 @@ export function SearchPage() {
     }
     setSp(next, { replace: true });
   };
+
+  // Top-bar free text (?nl=…) → parsed filters written into the URL → normal GET /rooms below.
+  const nl = get('nl');
+  const natural = useQuery({
+    queryKey: ['nl', nl],
+    queryFn: () => api.naturalSearch(nl),
+    enabled: nl.length >= 3,
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+  });
+  useEffect(() => {
+    if (natural.data) setSp(filtersToParams(natural.data, nl), { replace: true });
+  }, [natural.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = campusDay(new Date());
   const equipment = get('equipment').split(',').filter(Boolean) as Equipment[];
@@ -69,8 +84,9 @@ export function SearchPage() {
       ),
     [rooms.data, q],
   );
-  const filtersActive = [...sp.keys()].some((k) => k !== 'q');
-  const activeCount = [...sp.keys()].filter((k) => k !== 'q' && k !== 'sort').length;
+  const META = ['q', 'nl', 'asked', 'src'];
+  const filtersActive = [...sp.keys()].some((k) => !META.includes(k));
+  const activeCount = [...sp.keys()].filter((k) => !META.includes(k) && k !== 'sort').length;
   const [showFilters, setShowFilters] = useState(false); // mobile only; always shown ≥ md
 
   return (
@@ -81,6 +97,24 @@ export function SearchPage() {
       </section>
 
       <div className="space-y-6 px-4 py-6 md:px-8">
+        {natural.isFetching ? (
+          <p className="text-sm text-muted" aria-live="polite">
+            Understanding “{nl}”…
+          </p>
+        ) : natural.isError ? (
+          <p role="alert" className="text-sm text-amber-ink">
+            {(natural.error as { code?: string }).code === 'RATE_LIMITED'
+              ? 'That’s a lot of searches. Wait a minute, or use the filters below.'
+              : 'Couldn’t understand that search. Use the filters below.'}
+          </p>
+        ) : (
+          <SearchChips
+            sp={sp}
+            set={set}
+            buildings={buildings.data?.buildings ?? []}
+            onExample={(text) => setSp({ nl: text })}
+          />
+        )}
         <Button
           variant="outline"
           className="w-full md:hidden"

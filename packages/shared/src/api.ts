@@ -134,9 +134,19 @@ export const NaturalSearchRequestSchema = z.object({
   query: SafeText(300).pipe(z.string().min(3)),
 });
 export const NaturalSearchResponseSchema = z.object({
-  filters: RoomSearchQuerySchema.partial(),
+  filters: z.object({
+    building: Id.optional(),
+    minCapacity: z.number().int().optional(),
+    equipment: z.array(EquipmentSchema).optional(),
+    freeFrom: IsoDateTime.optional(),
+    freeTo: IsoDateTime.optional(),
+    freeNow: z.boolean().optional(),
+  }),
   rooms: z.array(RoomWithStatusSchema),
+  /** "bedrock" = understood by the LLM; "parser" = deterministic keyword parsing. */
+  source: z.enum(['bedrock', 'parser']),
 });
+export type NaturalSearchResponse = z.infer<typeof NaturalSearchResponseSchema>;
 
 export const ScheduleQuerySchema = z.object({ from: IsoDateTime, to: IsoDateTime });
 

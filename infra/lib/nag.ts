@@ -74,16 +74,7 @@ export function suppressNag(stack: Stack) {
     IAM5('*'),
     'dynamodb:ListStreams does not support resource-level permissions (added by DynamoEventSource).',
   );
-  for (const r of [
-    'arn:aws:bedrock:*::foundation-model/*',
-    `arn:aws:bedrock:*:${account}:inference-profile/*`,
-  ]) {
-    ack(
-      'Api/ApiFn',
-      IAM5(r),
-      'Bedrock natural-language search: the model id is runtime configuration, so invoke is allowed on foundation models and this account’s inference profiles only.',
-    );
-  }
+  // (Bedrock: no acknowledgement needed — ApiFn is granted exact model/profile ARNs.)
   ack(
     'GithubOidc',
     IAM5(`arn:aws:iam::${account}:role/cdk-${qualifier}-*-${account}-${region}`),

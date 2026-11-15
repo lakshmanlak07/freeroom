@@ -11,6 +11,7 @@ const synth = (stage: 'dev' | 'prod') => {
     demoMode: stage === 'dev',
     githubRepo: 'lakshmanlak07/freeroom',
     githubOidc: true,
+    nlModelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     env: { account: '111111111111', region: 'us-east-1' },
   });
   return Template.fromStack(stack);
@@ -81,6 +82,19 @@ describe('IAM', () => {
     expect(bedrock.map((p) => p.Properties.Roles[0]!.Ref)).toEqual([
       expect.stringMatching(/^ApiApiFnServiceRole/),
     ]);
+    // Exactly the one inference profile + the foundation model in each region it routes to.
+    const res = bedrock[0]!.Properties.PolicyDocument.Statement.filter((s) =>
+      actions(s).includes('bedrock:InvokeModel'),
+    ).flatMap((s) => [(s as { Resource?: unknown }).Resource].flat());
+    expect(JSON.stringify(res)).not.toContain('*');
+    expect(res).toHaveLength(4);
+    expect(JSON.stringify(res)).toContain(
+      'inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    );
+    for (const r of ['us-east-1', 'us-east-2', 'us-west-2'])
+      expect(JSON.stringify(res)).toContain(
+        `arn:aws:bedrock:${r}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
+      );
     const scans = (t: Template) =>
       policies(t).filter((p) =>
         p.Properties.PolicyDocument.Statement.some((s) => actions(s).includes('dynamodb:Scan')),

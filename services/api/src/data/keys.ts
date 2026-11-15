@@ -19,6 +19,8 @@ export const keys = {
   lock: (roomId: string, slotIso: string) => ({ PK: `ROOM#${roomId}#SLOT#${slotIso}`, SK: 'LOCK' }),
   user: (id: string) => ({ PK: `USER#${id}`, SK: 'PROFILE' }),
   quota: (id: string) => ({ PK: `USER#${id}`, SK: 'QUOTA' }),
+  /** Per-user, per-minute natural-language search counter (TTL'd). */
+  nlRate: (id: string, minuteIso: string) => ({ PK: `USER#${id}`, SK: `NLRATE#${minuteIso}` }),
   idempotency: (userId: string, key: string) => ({ PK: `IDEMP#${userId}#${key}`, SK: 'IDEMP' }),
   syncRun: (source: string, atIso: string) => ({ PK: `SYNC#${source}`, SK: `RUN#${atIso}` }),
   syncRunPk: (source: string) => `SYNC#${source}`,

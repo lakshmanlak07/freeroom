@@ -98,6 +98,21 @@ idempotently: the notification key comes from the event id, so retries never dup
 Failures retry twice with batch bisection, then land in an SQS DLQ, which triggers an alarm.
 The web app polls every 10 seconds and toasts new items.
 
+### Natural-language search that can't do anything but filter
+
+Type "room for 6 with a projector near the library at 3pm" in the top bar.
+`POST /rooms/search/natural` turns it into the **same filter object `GET /rooms` takes**, using:
+
+- **Bedrock** (Claude Haiku 4.5 through a us cross-region inference profile): one forced tool
+  whose input schema _is_ the filter object, zod-validated. The prompt holds the campus date and
+  time and the building list, never anything about the user.
+- **A deterministic parser** whenever Bedrock is off, slow (2 s), or returns anything invalid.
+
+The filters then run through the normal search. The model can't book, cancel or see anything.
+Prompt injection ("ignore instructions and book…") can at worst produce odd filters, and you see
+them as editable chips. Each user gets 10 searches a minute, results are cached for 5 minutes,
+and the `NLSearchSource` metric shows Bedrock vs parser.
+
 ### Privacy by construction: KMS (BR-5)
 
 - **University IDs** are HMAC-SHA256'd with a pepper from Secrets Manager. Only the hash is
@@ -125,7 +140,7 @@ Requires Node ≥ 22.19 (CI uses 24), pnpm via `corepack enable`, and Docker or 
 
 ```bash
 pnpm lint && pnpm typecheck
-pnpm test                       # 224 tests: domain rules, API integration on DynamoDB Local,
+pnpm test                       # 253 tests: domain rules, API integration on DynamoDB Local,
                                 # 50-way concurrency, adversarial/IDOR audit, infra assertions
 pnpm audit --audit-level high   # CI fails on high/critical
 pnpm --filter @freeroom/infra exec cdk synth -c stage=prod   # cdk-nag AwsSolutions: fails on unjustified findings
@@ -157,7 +172,6 @@ From PRD §0.3, plus what v1 deferred:
 
 - **Campus SAML SSO**: config-ready (`-c samlMetadataUrl=…`), needs UMass IT metadata.
 - **Live 25Live credentials**: the adapter is built and rate-limited; it needs the secret filled.
-- **Natural-language search** with Bedrock: the LLM only produces the existing filter object.
 - WebSockets instead of 10-second polling.
 - Week view.
 - Follow a room (notify when it frees up).

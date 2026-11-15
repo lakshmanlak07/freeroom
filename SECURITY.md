@@ -53,6 +53,11 @@ vulnerability). Please don't open a public issue.
 - **API Gateway throttling:** 50 rps steady, 100 burst (stage default).
 - **Per-user quotas**, checked inside the same write transaction: active reservations per role
   (student 2, faculty 5, tutor 3), 3 open claims, 1 claim per reservation.
+- **Natural-language search:** an LLM can only produce the room-filter object (one forced tool,
+  zod-validated, then the normal deterministic search). The prompt contains the query text, the
+  campus time and building names, never user identity or contact. Queries aren't logged. It's
+  limited to 10 per user per minute. IAM allows exactly one inference profile and its three
+  regional model ARNs.
 - **Input validation:** zod on every handler, with shared schemas in `packages/shared`. Free text
   is trimmed, sanitized and length-limited (purpose 140, claim message 280). `Idempotency-Key` is
   required on reservation create.
@@ -80,7 +85,6 @@ vulnerability). Please don't open a public issue.
   - IAM5:
     - GSI ARNs, constrained by LeadingKeys.
     - `fn:*` from grantInvoke.
-    - Bedrock models.
     - CDK bootstrap roles for the deploy role.
     - The WAF ACL name pattern.
     - CDK BucketDeployment / Provider internals.

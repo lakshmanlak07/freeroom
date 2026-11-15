@@ -165,11 +165,12 @@ function TopBar() {
   const config = useConfig();
   const navigate = useNavigate();
   const location = useLocation();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const onSearch = location.pathname === '/';
-  const [q, setQ] = useState(onSearch ? (params.get('q') ?? '') : '');
+  // Natural-language search: Enter sends the text; the search page turns it into filter chips.
+  const [q, setQ] = useState(onSearch ? (params.get('asked') ?? '') : '');
   useEffect(() => {
-    if (onSearch) setQ(params.get('q') ?? '');
+    if (onSearch) setQ(params.get('asked') ?? params.get('nl') ?? '');
   }, [onSearch, params]);
 
   return (
@@ -186,11 +187,12 @@ function TopBar() {
         className="relative min-w-0 flex-1"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!onSearch) navigate(`/?q=${encodeURIComponent(q)}`);
+          const text = q.trim();
+          if (text.length >= 3) navigate(`/?nl=${encodeURIComponent(text)}`);
         }}
       >
         <label htmlFor="global-search" className="sr-only">
-          Search rooms
+          Describe the room you need, then press Enter
         </label>
         <Search
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
@@ -200,15 +202,7 @@ function TopBar() {
           id="global-search"
           type="search"
           value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            if (onSearch) {
-              const next = new URLSearchParams(params);
-              if (e.target.value) next.set('q', e.target.value);
-              else next.delete('q');
-              setParams(next, { replace: true });
-            }
-          }}
+          onChange={(e) => setQ(e.target.value)}
           placeholder="Room for 6 with a projector near the library at 3pm"
           className="h-10 w-full max-w-2xl rounded-xl border border-line bg-cream pr-3 pl-9 text-sm placeholder:text-muted/80"
         />

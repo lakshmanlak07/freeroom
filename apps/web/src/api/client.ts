@@ -8,6 +8,7 @@ import {
   ClaimSchema,
   MeResponseSchema,
   MyReservationsResponseSchema,
+  NaturalSearchResponseSchema,
   NotificationsResponseSchema,
   RegisterResponseSchema,
   ReservationDetailSchema,
@@ -98,6 +99,9 @@ export function createApi(baseUrl: string, authHeaders: () => Promise<Record<str
     buildings: () => request('GET', '/buildings', BuildingsResponseSchema),
     rooms: (q: RoomSearchParams) =>
       request('GET', `/rooms${qs({ ...q })}`, RoomSearchResponseSchema),
+    /** Free text → parsed filters + rooms (Bedrock or the deterministic parser). */
+    naturalSearch: (query: string) =>
+      request('POST', '/rooms/search/natural', NaturalSearchResponseSchema, { body: { query } }),
     room: (id: string) => request('GET', `/rooms/${encodeURIComponent(id)}`, RoomSchema),
     schedule: (id: string, from: string, to: string) =>
       request(

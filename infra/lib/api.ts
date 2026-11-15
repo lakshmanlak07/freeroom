@@ -24,6 +24,17 @@ export const API_KEYS = [
   'MOCK25LIVE',
 ];
 
+/** Regions a `us.` cross-region inference profile routes to (AWS-defined; see DEPLOY.md). */
+const US_PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2'];
+export function bedrockArns(modelId: string, region: string, account: string): string[] {
+  if (!modelId.startsWith('us.')) return [`arn:aws:bedrock:${region}::foundation-model/${modelId}`];
+  const base = modelId.slice(3);
+  return [
+    `arn:aws:bedrock:${region}:${account}:inference-profile/${modelId}`,
+    ...US_PROFILE_REGIONS.map((r) => `arn:aws:bedrock:${r}::foundation-model/${base}`),
+  ];
+}
+
 export class Api extends Construct {
   readonly httpApi: HttpApi;
   readonly apiFn: NodejsFunction;
@@ -32,7 +43,7 @@ export class Api extends Construct {
   constructor(
     scope: Construct,
     id: string,
-    props: { stage: Stage; demo: boolean; data: Data; auth: Auth },
+    props: { stage: Stage; demo: boolean; data: Data; auth: Auth; nlModelId?: string },
   ) {
     super(scope, id);
     const { data, auth, stage } = props;
@@ -66,15 +77,17 @@ export class Api extends Construct {
     data.pepper.grantRead(this.apiFn);
     data.originVerify.grantRead(this.apiFn);
     data.twentyFiveLive.grantRead(this.apiFn);
-    this.apiFn.addToRolePolicy(
-      new PolicyStatement({
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/*',
-          `arn:aws:bedrock:*:${Stack.of(this).account}:inference-profile/*`,
-        ],
-      }),
-    );
+    // Natural-language search (F1 stretch): ONE model, exact ARNs — the inference profile plus the
+    // foundation model in each region that profile can route to (verified with get-inference-profile).
+    if (props.nlModelId) {
+      this.apiFn.addEnvironment('NL_MODEL_ID', props.nlModelId);
+      this.apiFn.addToRolePolicy(
+        new PolicyStatement({
+          actions: ['bedrock:InvokeModel'],
+          resources: bedrockArns(props.nlModelId, Stack.of(this).region, Stack.of(this).account),
+        }),
+      );
+    }
 
     // ---- Privileged: GET/PATCH /me + GET /claims/{id}/contact. The ONLY function with kms:Decrypt.
     this.revealFn = apiFn(this, 'RevealFn', {

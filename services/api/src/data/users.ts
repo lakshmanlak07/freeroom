@@ -210,3 +210,22 @@ export async function seedDemoUsers(db: Db, contacts: ContactService) {
     }),
   );
 }
+
+/**
+ * Per-user, per-minute natural-language search budget: one atomic ADD on a TTL'd counter, so the
+ * limit holds across Lambda instances. Returns false once the minute's budget is spent.
+ */
+export async function takeNlSearchToken(db: Db, userId: string, now: Date, perMinute: number) {
+  const minute = now.toISOString().slice(0, 16); // yyyy-mm-ddThh:mm (UTC)
+  const r = await db.doc.send(
+    new UpdateCommand({
+      TableName: db.table,
+      Key: keys.nlRate(userId, minute),
+      UpdateExpression: 'ADD #n :one SET #ttl = :ttl',
+      ExpressionAttributeNames: { '#n': 'n', '#ttl': 'ttl' },
+      ExpressionAttributeValues: { ':one': 1, ':ttl': Math.floor(now.getTime() / 1000) + 120 },
+      ReturnValues: 'UPDATED_NEW',
+    }),
+  );
+  return (r.Attributes?.n as number) <= perMinute;
+}

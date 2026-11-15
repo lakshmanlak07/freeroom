@@ -107,6 +107,25 @@ export const handlers = [
     });
   }),
 
+  // Mock-only stand-in for natural-language search (the real parser/Bedrock live in the API).
+  http.post('*/rooms/search/natural', async ({ request }) => {
+    await delay(400);
+    const { query } = (await request.json()) as { query: string };
+    const t = query.toLowerCase();
+    const cap = t.match(/\bfor (\d{1,3})\b|(\d{1,3}) people/);
+    const equipment = (
+      ['projector', 'whiteboard', 'computers', 'outlets', 'accessible'] as const
+    ).filter((e) => t.includes(e.replace(/s$/, '')));
+    const building = t.includes('library') ? 'DUBOIS' : t.includes('lgrt') ? 'LGRT' : undefined;
+    const filters = {
+      ...(building && { building }),
+      ...(cap && { minCapacity: Number(cap[1] ?? cap[2]) }),
+      ...(equipment.length && { equipment: [...equipment] }),
+      ...(/\bnow\b/.test(t) && { freeNow: true }),
+    };
+    return HttpResponse.json({ filters, rooms: [], source: 'parser' });
+  }),
+
   http.get('*/rooms', async ({ request }) => {
     await delay(300);
     const q = new URL(request.url).searchParams;

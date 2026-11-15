@@ -26,6 +26,8 @@ export interface FreeRoomStackProps extends StackProps {
    * iam:CreateOpenIDConnectProvider. Turn on (-c githubOidc=true) in an account that allows it.
    */
   githubOidc?: boolean;
+  /** Bedrock model/profile for natural-language search; omit = deterministic parser only. */
+  nlModelId?: string;
 }
 
 /** The ONE FreeRoom stack per stage (CLAUDE.md), composed of constructs. */
@@ -57,6 +59,7 @@ export class FreeRoomStack extends Stack {
       demo: props.demoMode,
       data,
       auth,
+      nlModelId: props.nlModelId,
     });
     // The SPA calls the API through CloudFront (/api/*), so WAF + HTTPS + headers cover it.
     // CloudFormation resolves the secret at deploy time (dynamic reference); it never sits in git.

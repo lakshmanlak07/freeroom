@@ -12,7 +12,8 @@ export type MetricName =
   | 'ClaimsApproved'
   | 'SyncSuccess'
   | 'ScheduleStalenessMinutes'
-  | 'NotificationFailures';
+  | 'NotificationFailures'
+  | 'NLSearchSource';
 
 let sink: ((line: string) => void) | null = process.env.AWS_LAMBDA_FUNCTION_NAME
   ? (l) => process.stdout.write(l + '\n')
@@ -20,7 +21,12 @@ let sink: ((line: string) => void) | null = process.env.AWS_LAMBDA_FUNCTION_NAME
 /** Tests: capture lines (or null to silence). */
 export const setMetricSink = (s: ((line: string) => void) | null) => (sink = s);
 
-export function metric(name: MetricName, value = 1, unit: 'Count' | 'None' = 'Count') {
+export function metric(
+  name: MetricName,
+  value = 1,
+  unit: 'Count' | 'None' = 'Count',
+  dims: Record<string, string> = {},
+) {
   if (!sink) return;
   sink(
     JSON.stringify({
@@ -29,12 +35,13 @@ export function metric(name: MetricName, value = 1, unit: 'Count' | 'None' = 'Co
         CloudWatchMetrics: [
           {
             Namespace: METRIC_NAMESPACE,
-            Dimensions: [['Stage']],
+            Dimensions: [['Stage', ...Object.keys(dims)]],
             Metrics: [{ Name: name, Unit: unit }],
           },
         ],
       },
       Stage: process.env.STAGE ?? 'local',
+      ...dims,
       [name]: value,
     }),
   );

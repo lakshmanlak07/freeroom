@@ -2,6 +2,7 @@
 import type { AppDeps, Surface } from './app';
 import { cognitoVerifier, secretsManagerPepper } from './auth';
 import { AwsKmsKeyProvider, ContactService } from './contact';
+import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { makeDb } from './data/db';
 import { loadInjected } from './sync/syncSchedule';
 import { createScheduleSource } from './twentyfive/source';
@@ -32,6 +33,9 @@ export async function lambdaDeps(surface: Surface): Promise<AppDeps> {
     }),
     // IAM decides what this can do: main role → GenerateDataKey only; privileged role → Decrypt.
     contacts: new ContactService(new AwsKmsKeyProvider(env('CONTACT_KMS_KEY_ID'))),
+    ...(process.env.NL_MODEL_ID && {
+      nlBedrock: { client: new BedrockRuntimeClient({}), modelId: process.env.NL_MODEL_ID },
+    }),
     devAuth: process.env.NODE_ENV === 'development',
     mock25live: demo,
     demo,

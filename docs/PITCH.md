@@ -19,7 +19,7 @@
 |---|---|---|---|
 | 0:00–0:20 | **Hook** | Landing page on screen | "It's 2pm. You and four friends need a room for a midterm review. Every classroom on campus shows up in 25Live, but nothing tells you which ones are empty *right now*. Watch." |
 | 0:20–0:50 | **Map** | Sign in → **Map**. Point at the colored markers, then tap the red building | "Every building is colored by how many rooms are free this minute: green, amber, red, with the percentage printed on the marker, so it never relies on color alone. Tap one and you get its free rooms with live status: *free until 3:15*." |
-| 0:50–1:10 | **Search** | **Search** → set capacity 5 + Whiteboard + building | "Or filter: five people, whiteboard, near the library. The status chips update every 10 seconds." *(Bedrock natural-language search is on the v1.1 roadmap. The filters are what the LLM would produce.)* |
+| 0:50–1:10 | **Natural-language search** | Type in the top bar: **room for 5 with a whiteboard near the library until 5** → Enter. Point at the chips, then ✕ one | "Or just say what you need. It's parsed into filters you can see and edit: capacity 5, whiteboard, Du Bois, now until 5. The model can only fill in filters; it can't book anything, and the results come from the same live search." *(The label reads "Understood by AI" with Bedrock, "Smart search" with the built-in parser.)* |
 | 1:10–1:40 | **Timeline** | Open a room → hover a purple striped block, then drag across free space → **Reserve** | "Classes are purple, striped and marked with a book; reservations are blue with a person. Hover a class and you get everything 25Live knows: course, section, department. Drag to reserve, two taps." |
 | 1:40–2:20 | **The hard parts** | (a) Drag over a class → error with the class name. (b) Both windows: same slot, click **Reserve** at the same time → one wins, one gets "already reserved". (c) As student1: **My reservations → Approve… → Share my contact**; in the other window **Show contact** | "Try to book over a class: blocked on the server, with the class name. Two people race for the same slot: one wins, every time. That's a DynamoDB transaction with a lock per 15-minute slot, tested with 50 parallel requests. Need a held room? Ask. The holder approves, and only then do you see the one contact they chose to share. It's encrypted with KMS, and only one Lambda in the whole system can decrypt it." |
 | 2:20–2:40 | **Resilience** | Admin window: **Demo → pick Night Owl's room → Inject class conflict.** Student window: the toast appears, then **Notifications** | "Now the registrar schedules a class in Night Owl's room. 25Live always wins: the reservation is released and Night Owl gets a notification right away, with three free alternatives. One tap, rebooked." |
@@ -41,10 +41,10 @@
    - private contact: KMS, one decrypting Lambda.
    Back each with its test ("50 parallel → 1 wins").
 4. **Architecture.** The Mermaid diagram from the README. Callouts: serverless, event-driven,
-   WAF + alarms + runbook, about $8/month, cdk-nag clean, 224 automated tests + Playwright,
+   WAF + alarms + runbook, about $8/month, cdk-nag clean, 253 automated tests + Playwright,
    Lighthouse accessibility 100.
 5. **Adoption + roadmap.** UMass IT flips two switches (25Live credentials in Secrets Manager,
-   SAML metadata). Next: Bedrock natural-language search, WebSockets, follow-a-room.
+   SAML metadata). Next: WebSockets, follow-a-room, week view.
 
 ## 10 judge questions
 
@@ -95,8 +95,6 @@
    - zod validation on every input, idempotency keys, and server-side authorization in the
      domain layer (tested against IDOR on every route).
 10. **What's next?**
-    - Bedrock natural-language search ("room for 5 with a whiteboard near the library until 5"),
-      where the LLM only produces the filter object, so it can't book anything.
     - WebSockets instead of polling.
     - Follow a room to get notified when it frees up.
     - Campus SSO and live 25Live, as soon as IT says yes.

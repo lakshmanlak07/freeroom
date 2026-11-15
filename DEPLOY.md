@@ -129,7 +129,23 @@ KMS-encrypted, and by design only RevealFn may decrypt it (BR-5). To turn email 
 The notifier already supports `SES_FROM` (`services/api/src/notify/onChange.ts`). It logs only
 error names on failure, never addresses.
 
-## 6. Switch on real 25Live
+## 6. Natural-language search (Bedrock)
+
+On by default (`infra/cdk.json`: `nlBedrock=true`,
+`nlModelId=us.anthropic.claude-haiku-4-5-20251001-v1:0`, the us cross-region inference profile,
+callable from us-east-2). Turn it off with `-c nlBedrock=false`; the deterministic parser then
+answers every search.
+
+**One-time account step:** Bedrock console (us-east-2) → _Model catalog_ → any Anthropic model →
+submit the **Anthropic use-case details** form. Until it's approved, Bedrock answers
+`ResourceNotFoundException` and searches fall back to the parser ("Smart search" in the UI).
+After approval it works with no redeploy ("Understood by AI"). Check the `NLSearchSource` metric,
+split by `Source`, on the dashboard.
+
+To use another model, pass `-c nlModelId=<profile id>`. The IAM grant follows: the profile ARN,
+plus the foundation model in us-east-1/us-east-2/us-west-2 for `us.` profiles.
+
+## 7. Switch on real 25Live
 
 1. Put the credentials UMass IT gives you into the secret (the next sync picks them up; no
    deploy needed):
@@ -153,7 +169,7 @@ error names on failure, never addresses.
 The client is rate-limited with backoff. If 25Live is down, the app keeps serving the last synced
 schedule, and the `ScheduleStale` alarm fires after 60 minutes.
 
-## 7. Switch on campus SAML SSO
+## 8. Switch on campus SAML SSO
 
 1. Ask UMass IT for the IdP **metadata URL**. Give them these SP details:
    - Entity ID: `urn:amazon:cognito:sp:<UserPoolId>` (from the outputs)
@@ -170,7 +186,7 @@ schedule, and the `ScheduleStale` alarm fires after 60 minutes.
 
 3. Users still complete `/register` once (University ID → HMAC) after their first SSO sign-in.
 
-## 8. Custom domain (optional)
+## 9. Custom domain (optional)
 
 Request an ACM certificate **in us-east-1**. That needs the SCP to allow ACM there, or an
 unrestricted account. Then add `domainNames` + `certificate` and

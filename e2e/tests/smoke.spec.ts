@@ -35,6 +35,19 @@ test('search lists rooms', async () => {
   expect(await cards.count()).toBeGreaterThan(3);
 });
 
+test('natural-language search → editable filter chips', async () => {
+  await owner.goto('/');
+  await owner.getByRole('searchbox').fill('room for 6 with a projector near the library');
+  await owner.getByRole('searchbox').press('Enter');
+  const chips = owner.getByLabel('Search filters');
+  const label = chips.getByText(/Understood by AI|Smart search/);
+  await expect(label).toBeVisible();
+  await expect(chips.getByText('Capacity ≥ 6')).toBeVisible();
+  await expect(chips.getByRole('button', { name: 'Remove Projector' })).toBeVisible();
+  console.log(`NL search source: ${await label.innerText()}`);
+  await owner.goto('/'); // back to the plain list for the next test
+});
+
 test('reserve a free slot', async () => {
   const hrefs = await owner
     .locator('a[href^="/rooms/"]')

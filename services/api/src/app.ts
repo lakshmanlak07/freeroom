@@ -10,6 +10,7 @@ import { withCorrelationId } from './correlation';
 import { AppError } from './errors';
 import { createLogger, type Logger } from './logger';
 import { metric } from './metrics';
+import type { NlBedrock } from './nlsearch';
 import { claimRoutes, contactRevealRoutes } from './routes/claims';
 import { demoRoutes, mock25liveRoutes } from './routes/dev';
 import { notificationRoutes } from './routes/notifications';
@@ -39,6 +40,8 @@ export interface AppDeps {
    * (i.e. straight to the execute-api URL, around the WAF) are refused.
    */
   originSecret?: () => Promise<string>;
+  /** Bedrock for natural-language search; absent = deterministic parser only. */
+  nlBedrock?: NlBedrock;
   contacts?: ContactService;
   surface?: Surface;
   /** `x-dev-user` header auth. Only when NODE_ENV=development; refused in prod. */
