@@ -74,6 +74,8 @@ verified correct on every user-facing write path by two independent reviewers. S
 | /rooms/:id | 95 | 100 | 100 | 82 | 1.3 s | 0.113 | 130 ms |
 | /map | 56 | 96 | 100 | 82 | 5.0 s | 0 | 1,470 ms |
 
+**After the fixes** (same settings): /welcome **100** perf · / **98** · /rooms/:id **93** · /map 60 (maplibre, lazy-loaded on /map only). Accessibility 100 (map 96), best practices 100, SEO 82 → **91** (title, description, theme-color).
+
 JS (gzip): main `index` 229.6 kB · `MapPage` (maplibre, lazy, /map only) 302.2 kB · `auth` 24.9 kB · `tokenProvider` 14.6 kB.
 
 ## Flaky tests (3× full run)
