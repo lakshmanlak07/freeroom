@@ -19,6 +19,7 @@ export class Data extends Construct {
   readonly pepper: Secret;
   readonly twentyFiveLive: Secret;
   readonly testUsers: Secret;
+  readonly originVerify: Secret;
 
   constructor(scope: Construct, id: string, props: { stage: Stage }) {
     super(scope, id);
@@ -57,6 +58,15 @@ export class Data extends Construct {
       secretName: `freeroom/${props.stage}/uid-pepper`,
       description: 'HMAC pepper for University IDs',
       generateSecretString: { passwordLength: 64, excludePunctuation: true, includeSpace: false },
+      removalPolicy,
+    });
+
+    // CloudFront → API shared secret (x-origin-verify): the API refuses requests that skip the
+    // CloudFront distribution (and so its WAF) by calling the execute-api URL directly.
+    this.originVerify = new Secret(this, 'OriginVerify', {
+      secretName: `freeroom/${props.stage}/origin-verify`,
+      description: 'Header value CloudFront adds on /api/*; the API rejects requests without it.',
+      generateSecretString: { passwordLength: 48, excludePunctuation: true, includeSpace: false },
       removalPolicy,
     });
 

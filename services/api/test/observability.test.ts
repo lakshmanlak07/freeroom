@@ -75,3 +75,19 @@ describe('observability', () => {
     });
   });
 });
+
+describe('origin verify (WAF bypass guard)', () => {
+  it('refuses requests without the CloudFront secret header', async () => {
+    const t2 = await setupTestApp({
+      now: NOW,
+      sync: false,
+      deps: { originSecret: async () => 'cf-secret-123' },
+    });
+    const bare = await t2.app.request('/health');
+    expect(bare.status).toBe(403);
+    const wrong = await t2.app.request('/health', { headers: { 'x-origin-verify': 'nope' } });
+    expect(wrong.status).toBe(403);
+    const ok = await t2.app.request('/health', { headers: { 'x-origin-verify': 'cf-secret-123' } });
+    expect(ok.status).toBe(200);
+  });
+});

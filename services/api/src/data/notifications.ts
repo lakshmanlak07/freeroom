@@ -103,6 +103,7 @@ export async function markRead(db: Db, userId: string, ids: readonly string[] | 
           .slice(0, 500)
           .map((i) => i.notifId as string)
       : ids;
+  let updated = 0; // only the caller's own, existing notifications count (ids are scoped to their PK)
   for (const id of targets) {
     try {
       await db.doc.send(
@@ -115,9 +116,10 @@ export async function markRead(db: Db, userId: string, ids: readonly string[] | 
           ExpressionAttributeValues: { ':t': true },
         }),
       );
+      updated++;
     } catch (e) {
       if (!(e instanceof ConditionalCheckFailedException)) throw e; // unknown id: ignore
     }
   }
-  return targets.length;
+  return updated;
 }

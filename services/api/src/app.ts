@@ -1,6 +1,7 @@
 import { type RoleLimits } from '@freeroom/domain';
 import { ERROR_STATUS, type ApiError, type ErrorCode, type Role } from '@freeroom/shared';
 import { Hono } from 'hono';
+import { timingSafeEqual } from 'node:crypto';
 import type { VerifyIdToken } from './auth';
 import type { ContactService } from './contact';
 import type { Db } from './data/db';
@@ -33,6 +34,11 @@ export interface AppDeps {
   /** Cognito ID-token verification (aws-jwt-verify). */
   verifyIdToken?: VerifyIdToken;
   uidPepper?: () => Promise<string>;
+  /**
+   * Shared secret CloudFront adds as `x-origin-verify` on /api/*. When set, requests without it
+   * (i.e. straight to the execute-api URL, around the WAF) are refused.
+   */
+  originSecret?: () => Promise<string>;
   contacts?: ContactService;
   surface?: Surface;
   /** `x-dev-user` header auth. Only when NODE_ENV=development; refused in prod. */
@@ -103,6 +109,16 @@ export function createApp(deps: AppDeps) {
       status: c.res.status,
       ms: Date.now() - t0,
     });
+  });
+
+  app.use('*', async (c, next) => {
+    if (!ctx.originSecret) return next();
+    const got = Buffer.from(c.req.header('x-origin-verify') ?? '');
+    const want = Buffer.from(await ctx.originSecret());
+    if (got.length !== want.length || !timingSafeEqual(got, want)) {
+      throw new AppError('FORBIDDEN', 'Use the FreeRoom site URL');
+    }
+    return next();
   });
 
   app.use('*', async (c, next) => {

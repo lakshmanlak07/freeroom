@@ -27,6 +27,9 @@ export async function lambdaDeps(surface: Surface): Promise<AppDeps> {
       clientId: env('COGNITO_CLIENT_ID'),
     }),
     uidPepper: secretsManagerPepper(env('UID_PEPPER_SECRET_ARN')),
+    ...(process.env.ORIGIN_VERIFY_SECRET_ARN && {
+      originSecret: secretsManagerPepper(process.env.ORIGIN_VERIFY_SECRET_ARN),
+    }),
     // IAM decides what this can do: main role → GenerateDataKey only; privileged role → Decrypt.
     contacts: new ContactService(new AwsKmsKeyProvider(env('CONTACT_KMS_KEY_ID'))),
     devAuth: process.env.NODE_ENV === 'development',

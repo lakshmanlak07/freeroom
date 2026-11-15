@@ -77,3 +77,9 @@ export function grantTable(
     }),
   );
 }
+
+/**
+ * CDK bootstrap qualifier per stage. Prod has its own bootstrap (roles + assets bucket), so the
+ * dev deploy role (any push to main) can't assume prod's deploy roles.
+ */
+export const bootstrapQualifier = (stage: Stage) => (stage === 'prod' ? 'frprod' : 'hnb659fds');

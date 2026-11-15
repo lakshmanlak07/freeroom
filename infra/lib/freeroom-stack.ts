@@ -19,8 +19,13 @@ export interface FreeRoomStackProps extends StackProps {
   /** CloudFront WAF (default: prod only). */
   waf?: boolean;
   wafRateLimit?: number;
-  /** owner/name allowed to deploy via GitHub OIDC; omit to skip the deploy role. */
+  /** owner/name allowed to deploy via GitHub OIDC. */
   githubRepo?: string;
+  /**
+   * Create the GitHub OIDC deploy role. Off by default: the hackathon account's SCP denies
+   * iam:CreateOpenIDConnectProvider. Turn on (-c githubOidc=true) in an account that allows it.
+   */
+  githubOidc?: boolean;
 }
 
 /** The ONE FreeRoom stack per stage (CLAUDE.md), composed of constructs. */
@@ -54,7 +59,8 @@ export class FreeRoomStack extends Stack {
       auth,
     });
     // The SPA calls the API through CloudFront (/api/*), so WAF + HTTPS + headers cover it.
-    const apiUrl = web.routeApi(api.httpApi);
+    // CloudFormation resolves the secret at deploy time (dynamic reference); it never sits in git.
+    const apiUrl = web.routeApi(api.httpApi, data.originVerify.secretValue.unsafeUnwrap());
     const async = new Async(this, 'Async', { stage, data });
     const obs = new Observability(this, 'Observability', {
       stage,
@@ -79,7 +85,7 @@ export class FreeRoomStack extends Stack {
     });
 
     const out = (name: string, value: string) => new CfnOutput(this, name, { value });
-    if (props.githubRepo) {
+    if (props.githubOidc && props.githubRepo) {
       const gh = new GithubOidc(this, 'GithubOidc', { stage, repo: props.githubRepo });
       // Post-deploy (infra/scripts/postDeploy.ts): first sync, test users, demo seed.
       async.syncFn.grantInvoke(gh.role);
@@ -101,7 +107,6 @@ export class FreeRoomStack extends Stack {
     }
 
     out('WebUrl', web.url);
-    out('ApiUrl', api.httpApi.apiEndpoint);
     out('UserPoolId', auth.userPool.userPoolId);
     out('UserPoolClientId', auth.client.userPoolClientId);
     out('TableName', data.table.tableName);

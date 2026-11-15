@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const INFRA = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = join(INFRA, '..');
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter((a) => a !== '--'); // pnpm passes a literal --
 const i = args.indexOf('--stage');
 const stage = i >= 0 ? args[i + 1] : undefined;
 if (stage !== 'dev' && stage !== 'prod') {

@@ -10,6 +10,7 @@ const synth = (stage: 'dev' | 'prod') => {
     stage,
     demoMode: stage === 'dev',
     githubRepo: 'lakshmanlak07/freeroom',
+    githubOidc: true,
     env: { account: '111111111111', region: 'us-east-1' },
   });
   return Template.fromStack(stack);
@@ -353,5 +354,35 @@ describe('P8 hardening', () => {
     });
     prod.hasResourceProperties('AWS::CloudWatch::Dashboard', { DashboardName: 'FreeRoom-prod' });
     prod.hasResourceProperties('AWS::SNS::Topic', Match.anyValue());
+  });
+});
+
+describe('P9 security review fixes', () => {
+  it('CloudFront sends the origin-verify secret to the API; the API reads it', () => {
+    prod.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        Origins: Match.arrayWith([
+          Match.objectLike({
+            OriginCustomHeaders: [
+              Match.objectLike({ HeaderName: 'x-origin-verify', HeaderValue: Match.anyValue() }),
+            ],
+          }),
+        ]),
+      }),
+    });
+    expect(JSON.stringify(prod.toJSON())).toContain('ORIGIN_VERIFY_SECRET_ARN');
+    expect(Object.keys(prod.toJSON().Outputs)).not.toContain('ApiUrl');
+  });
+
+  it('each deploy role can only assume its own stage’s bootstrap roles', () => {
+    const assumable = (t: Template) =>
+      policies(t)
+        .flatMap((p) => p.Properties.PolicyDocument.Statement)
+        .filter((s) => actions(s).includes('sts:AssumeRole'))
+        .flatMap((s) => [(s as { Resource?: unknown }).Resource].flat())
+        .map((r) => JSON.stringify(r));
+    expect(assumable(prod).join()).toContain('cdk-frprod-');
+    expect(assumable(prod).join()).not.toContain('hnb659fds');
+    expect(assumable(dev).join()).not.toContain('frprod');
   });
 });

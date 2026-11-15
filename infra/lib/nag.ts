@@ -1,5 +1,6 @@
 import { Token, Validations, type CfnElement, type Stack } from 'aws-cdk-lib';
 import type { IConstruct } from 'constructs';
+import { bootstrapQualifier } from './fn';
 
 /**
  * cdk-nag AwsSolutions: every finding we accept, with its reason (SECURITY.md summarises these).
@@ -19,6 +20,7 @@ export function suppressNag(stack: Stack) {
   // Env-agnostic synth (CI lint, no AWS credentials): nag prints the pseudo-parameter instead.
   const account = Token.isUnresolved(stack.account) ? '<AWS::AccountId>' : stack.account;
   const region = Token.isUnresolved(stack.region) ? '<AWS::Region>' : stack.region;
+  const qualifier = bootstrapQualifier(stack.stackName.endsWith('prod') ? 'prod' : 'dev');
 
   // ---- Stack-wide
   ack(
@@ -55,7 +57,7 @@ export function suppressNag(stack: Stack) {
       'Action::s3:DeleteObject*',
       'Action::s3:Abort*',
       'Resource::*',
-      `Resource::arn:<AWS::Partition>:s3:::cdk-hnb659fds-assets-${account}-${region}/*`,
+      `Resource::arn:<AWS::Partition>:s3:::cdk-${qualifier}-assets-${account}-${region}/*`,
       `Resource::${arn('Web/Site')}/*`,
     ]) {
       Validations.of(child).acknowledge({
@@ -84,8 +86,8 @@ export function suppressNag(stack: Stack) {
   }
   ack(
     'GithubOidc',
-    IAM5(`arn:aws:iam::${account}:role/cdk-hnb659fds-*-${account}-${region}`),
-    'The deploy role may only assume this account/region’s CDK bootstrap roles (cdk-hnb659fds-<kind>-role); the wildcard is the role kind.',
+    IAM5(`arn:aws:iam::${account}:role/cdk-${qualifier}-*-${account}-${region}`),
+    'The deploy role may only assume ITS stage’s CDK bootstrap roles (cdk-<qualifier>-<kind>-role; prod has its own qualifier); the wildcard is the role kind.',
   );
   if (find('EdgeWaf')) {
     const stage = stack.stackName.replace(/^FreeRoom-/, '');
@@ -182,6 +184,11 @@ export function suppressNag(stack: Stack) {
     'Data/TestUsers',
     'AwsSolutions-SMG4',
     'Demo/smoke-test logins managed by postDeploy (a removed entry gets a new password); RUNBOOK.md covers rotation.',
+  );
+  ack(
+    'Data/OriginVerify',
+    'AwsSolutions-SMG4',
+    'CloudFront-to-API shared header value; rotate by putting a new value and redeploying (RUNBOOK.md) so CloudFront and the API change together.',
   );
   ack(
     'Async/OnChangeDlq',

@@ -11,7 +11,8 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
-    trace: 'retain-on-failure',
+    // CI: no traces (they record typed values, i.e. test logins); screenshots only.
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
     screenshot: 'only-on-failure',
     viewport: { width: 1280, height: 800 },
   },

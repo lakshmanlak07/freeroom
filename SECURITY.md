@@ -47,6 +47,9 @@ vulnerability). Please don't open a public issue.
 - **WAF on CloudFront (prod):** a 300 requests / 5 min per-IP rate limit on `/api/*`, plus the
   AWS managed Common Rule Set and Known Bad Inputs. The API is served from the same CloudFront
   distribution (`/api/*`), so the WAF covers the API, not just static files.
+- **No way around the WAF:** CloudFront adds a secret `x-origin-verify` header (generated in
+  Secrets Manager), and the API refuses any request without it. Calling the `execute-api` URL
+  directly returns 403 (unit test + live check).
 - **API Gateway throttling:** 50 rps steady, 100 burst (stage default).
 - **Per-user quotas**, checked inside the same write transaction: active reservations per role
   (student 2, faculty 5, tutor 3), 3 open claims, 1 claim per reservation.
@@ -92,7 +95,7 @@ vulnerability). Please don't open a public issue.
   - COG8: Cognito Plus (paid).
   - SMG4: secrets without rotation (pepper, 25Live, test users; see RUNBOOK.md).
   - SQS3: the DLQ itself has no DLQ.
-- **CI/CD uses GitHub OIDC, with no long-lived AWS keys.**
+- **CI/CD uses GitHub OIDC, with no long-lived AWS keys** (opt-in; see the accepted risks).
   - The dev deploy role trusts only `repo:lakshmanlak07/freeroom:ref:refs/heads/main`.
   - The prod deploy role trusts only that repo's `prod` environment.
   - Both roles can only assume the CDK bootstrap roles, plus narrow post-deploy grants (sync
@@ -113,9 +116,13 @@ vulnerability). Please don't open a public issue.
 
 ## Accepted risks / known gaps
 
-- **Direct `execute-api` URL bypasses the WAF.** Requests still need a valid JWT for anything
-  non-public and still hit stage throttling and per-user quotas. _Upgrade path:_ a secret origin
-  header set by CloudFront and checked by the API.
+- **GitHub OIDC deploys are off in this AWS account:** its SCP denies
+  `iam:CreateOpenIDConnectProvider`. The deploy role is opt-in (`-c githubOidc=true`); until then,
+  deploys run from a maintainer machine with short-lived `aws login` credentials. No long-lived
+  keys are used anywhere.
+- The CloudFormation execution role created by `cdk bootstrap` has AdministratorAccess (the CDK
+  default). Dev and prod use **separate bootstraps** (qualifier `frprod` for prod) so one stage's
+  deploy role can't assume the other's. Full isolation would mean separate AWS accounts.
 - No WAF on the **dev** stage (owner decision on cost: about $8/month). No required MFA. Cognito
   threat protection is off (paid tier).
 - CloudFront uses the default `*.cloudfront.net` certificate; set TLS 1.2+ when attaching a

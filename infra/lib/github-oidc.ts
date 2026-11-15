@@ -7,7 +7,7 @@ import {
   type IOpenIdConnectProvider,
 } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import type { Stage } from './fn';
+import { bootstrapQualifier, type Stage } from './fn';
 
 const ISSUER = 'token.actions.githubusercontent.com';
 
@@ -15,7 +15,7 @@ const ISSUER = 'token.actions.githubusercontent.com';
  * Deploy role for GitHub Actions via OIDC (no long-lived keys). Trust is pinned to ONE repo and:
  *   dev  → pushes to main   (sub = repo:<owner/name>:ref:refs/heads/main)
  *   prod → the `prod` environment (sub = repo:<owner/name>:environment:prod)
- * The role can only assume the CDK bootstrap roles (which do the actual deploy) plus whatever
+ * The role can only assume its own stage's CDK bootstrap roles (which do the deploy) plus whatever
  * the stack grants it for post-deploy steps. The OIDC provider is account-wide: the dev stack
  * creates it, prod imports it.
  */
@@ -52,7 +52,10 @@ export class GithubOidc extends Construct {
     this.role.addToPolicy(
       new PolicyStatement({
         actions: ['sts:AssumeRole'],
-        resources: [`arn:aws:iam::${account}:role/cdk-hnb659fds-*-${account}-${region}`],
+        // Only THIS stage's bootstrap roles (prod is bootstrapped with its own qualifier).
+        resources: [
+          `arn:aws:iam::${account}:role/cdk-${bootstrapQualifier(props.stage)}-*-${account}-${region}`,
+        ],
       }),
     );
   }

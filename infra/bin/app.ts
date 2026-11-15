@@ -1,5 +1,6 @@
-import { App, Validations } from 'aws-cdk-lib';
+import { App, DefaultStackSynthesizer, Validations } from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
+import { bootstrapQualifier } from '../lib/fn';
 import { FreeRoomStack } from '../lib/freeroom-stack';
 import { suppressNag } from '../lib/nag';
 
@@ -17,6 +18,9 @@ const stack = new FreeRoomStack(app, `FreeRoom-${stage}`, {
   waf: ctx('waf') === undefined ? undefined : ctx('waf') === 'true',
   wafRateLimit: ctx('wafRateLimit') ? Number(ctx('wafRateLimit')) : undefined,
   githubRepo: ctx('githubRepo') ?? 'lakshmanlak07/freeroom',
+  githubOidc: ctx('githubOidc') === 'true',
+  // Prod: its own bootstrap (cdk bootstrap --qualifier frprod --toolkit-stack-name CDKToolkit-frprod).
+  synthesizer: new DefaultStackSynthesizer({ qualifier: bootstrapQualifier(stage) }),
   // us-east-2: the hackathon AWS free-plan project is SCP-locked to Ohio (us-east-1 calls are
   // denied). Override with -c region=… for an unrestricted account.
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: ctx('region') ?? 'us-east-2' },

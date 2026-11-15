@@ -45,6 +45,7 @@ export class Api extends Construct {
       COGNITO_CLIENT_ID: auth.client.userPoolClientId,
       UID_PEPPER_SECRET_ARN: data.pepper.secretArn,
       CONTACT_KMS_KEY_ID: data.piiKey.keyArn,
+      ORIGIN_VERIFY_SECRET_ARN: data.originVerify.secretArn,
     };
 
     // ---- Main API: everything except /me and contact reveal. Encrypts contact, never decrypts.
@@ -63,6 +64,7 @@ export class Api extends Construct {
     );
     data.piiKey.grant(this.apiFn, 'kms:GenerateDataKey');
     data.pepper.grantRead(this.apiFn);
+    data.originVerify.grantRead(this.apiFn);
     data.twentyFiveLive.grantRead(this.apiFn);
     this.apiFn.addToRolePolicy(
       new PolicyStatement({
@@ -83,6 +85,7 @@ export class Api extends Construct {
     });
     grantTable(this.revealFn, data.table, [...READ, 'PutItem', 'UpdateItem'], ['USER#*', 'RES#*']);
     data.piiKey.grant(this.revealFn, 'kms:Decrypt', 'kms:GenerateDataKey');
+    data.originVerify.grantRead(this.revealFn);
 
     // The SPA reaches the API same-origin through CloudFront (/api/*), so CORS is only for the
     // local Vite dev server against the dev stage. (Listing the CloudFront origin here would

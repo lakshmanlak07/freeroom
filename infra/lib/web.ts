@@ -148,7 +148,7 @@ export class Web extends Construct {
   }
 
   /** /api/* → the HTTP API (prefix stripped), never cached, all viewer headers incl. Authorization. */
-  routeApi(httpApi: HttpApi): string {
+  routeApi(httpApi: HttpApi, originVerify: string): string {
     const strip = new CfFunction(this, 'ApiPrefixStrip', {
       code: FunctionCode.fromInline(
         String.raw`function handler(e){var r=e.request;r.uri=r.uri.replace(/^\/api/,'')||'/';return r;}`,
@@ -156,7 +156,9 @@ export class Web extends Construct {
     });
     this.distribution.addBehavior(
       '/api/*',
-      new HttpOrigin(`${httpApi.apiId}.execute-api.${Stack.of(this).region}.amazonaws.com`),
+      new HttpOrigin(`${httpApi.apiId}.execute-api.${Stack.of(this).region}.amazonaws.com`, {
+        customHeaders: { 'x-origin-verify': originVerify },
+      }),
       {
         viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
         allowedMethods: AllowedMethods.ALLOW_ALL,

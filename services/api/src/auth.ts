@@ -26,7 +26,7 @@ export function secretsManagerPepper(secretArn: string): () => Promise<string> {
     cached ??= new SecretsManagerClient({})
       .send(new GetSecretValueCommand({ SecretId: secretArn }))
       .then((r) => {
-        if (!r.SecretString) throw new Error('UID pepper secret is empty');
+        if (!r.SecretString) throw new Error(`Secret ${secretArn.split(':').pop()} is empty`);
         return r.SecretString;
       });
     cached.catch(() => (cached = undefined));

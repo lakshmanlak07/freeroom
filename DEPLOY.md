@@ -21,6 +21,8 @@ uses afterwards.
 ```bash
 aws login
 npx --prefix infra cdk bootstrap aws://<ACCOUNT_ID>/us-east-2
+# prod gets its own bootstrap, so the dev deploy role can never assume prod's deploy roles
+npx --prefix infra cdk bootstrap aws://<ACCOUNT_ID>/us-east-2 --qualifier frprod --toolkit-stack-name CDKToolkit-frprod -c stage=prod
 ```
 
 Deploy dev **first**. It creates the account-wide GitHub OIDC provider that prod imports.
@@ -29,6 +31,9 @@ Deploy dev **first**. It creates the account-wide GitHub OIDC provider that prod
 pnpm run deploy -- --stage dev  -c alarmEmail=<you@example.com>
 pnpm run deploy -- --stage prod -c alarmEmail=<you@example.com>
 ```
+
+In an OIDC-capable account, add `-c githubOidc=true` to both commands (dev first: it creates
+the account-wide OIDC provider).
 
 `deploy` builds the web app, runs `cdk deploy`, then `infra/scripts/postDeploy.ts`, which does
 three things:
@@ -44,7 +49,12 @@ reach you.
 Outputs are in `infra/cdk-outputs.<stage>.json` (gitignored): `WebUrl`, `DeployRoleArn`,
 `DashboardName`, `TestUsersSecretArn`, and more.
 
-### Connect GitHub
+### Connect GitHub (needs an account that allows GitHub OIDC)
+
+The GitHub deploy roles are created only with `-c githubOidc=true`. The hackathon account's SCP
+denies `iam:CreateOpenIDConnectProvider`, so there FreeRoom is deployed from a maintainer
+machine with the commands above, while CI (lint, tests, audit, cdk-nag) still runs on GitHub. In
+an account that allows OIDC, deploy once with `-c githubOidc=true` and then:
 
 ```bash
 gh variable set AWS_DEV_ROLE_ARN  --body "$(jq -r '."FreeRoom-dev".DeployRoleArn'  infra/cdk-outputs.dev.json)"
