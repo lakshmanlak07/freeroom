@@ -4,9 +4,14 @@ const REDACT_KEY =
   /universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|x-dev-user|enc$/i;
 // PII that can hide inside free text (error messages).
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-// Phone-shaped (413-555-0100, (413) 555 0100, +1 413 555 0100) — not ISO dates or ids.
-const PHONE = /(\+?\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g;
-const scrub = (s: string) => s.replace(EMAIL, '[REDACTED]').replace(PHONE, '[REDACTED]');
+// Any phone-like digit run (4135550100, +44 20 7946 0958, (413) 555-0100). Fail closed: only
+// ISO dates (2026-11-15) are kept so timestamps in error messages stay readable.
+const PHONE = /\+?\d[\d\s().-]{6,}\d/g;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const scrub = (s: string) =>
+  s
+    .replace(EMAIL, '[REDACTED]')
+    .replace(PHONE, (m) => (ISO_DATE.test(m.trim()) ? m : '[REDACTED]'));
 
 export function redact(value: unknown, depth = 0): unknown {
   if (value === null || typeof value !== 'object') return value;
