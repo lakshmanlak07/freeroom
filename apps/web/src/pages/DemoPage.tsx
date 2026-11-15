@@ -7,7 +7,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState } from '@/components/EmptyState';
 import { Button, inputClass } from '@/components/ui/button';
 import { useConfig } from '@/config';
-import { addDays, campusDay, campusLocalToUtc, fmtRange, fmtTime } from '@/lib/time';
+import { addDays, campusDay, campusLocalToUtc, fmtDay, fmtRange, fmtTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
 export function DemoPage() {
@@ -21,6 +21,12 @@ export function DemoPage() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [log, setLog] = useState<{ at: Date; text: string; ok: boolean }[]>([]);
   const rooms = useQuery({ queryKey: ['rooms', {}], queryFn: () => api.rooms({}) });
+  const status = useQuery({
+    queryKey: ['demoStatus'],
+    queryFn: api.demo.status,
+    refetchInterval: 60_000,
+  });
+  const last = status.data?.lastReset;
   const schedule = useQuery({
     queryKey: ['schedule', roomId, day],
     queryFn: () =>
@@ -78,6 +84,11 @@ export function DemoPage() {
       <section className="bg-brand-gradient px-4 pt-8 pb-14 text-white md:px-8">
         <h1 className="text-3xl font-bold">Demo controls</h1>
         <p className="text-white/90">Stage tools for the pitch. Demo data only.</p>
+        <p className="mt-2 text-sm text-white/90" aria-live="polite">
+          {last
+            ? `Last reset: ${fmtDay(campusDay(new Date(last.at)))}, ${fmtTime(last.at)} (${last.by === 'schedule' ? 'automatic, every 2 hours' : 'by an admin'})`
+            : 'Last reset: not yet. The demo resets itself every 2 hours.'}
+        </p>
       </section>
       <div className="grid gap-6 px-4 py-6 md:px-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-4 rounded-2xl border border-line bg-white p-4 shadow-card">

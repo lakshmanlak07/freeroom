@@ -172,7 +172,14 @@ export class Web extends Construct {
   }
 
   /** Upload the SPA build + a generated runtime config.json (never cached). */
-  deploy(config: { apiUrl: string; userPoolId: string; clientId: string; demoMode: boolean }) {
+  deploy(config: {
+    apiUrl: string;
+    userPoolId: string;
+    clientId: string;
+    demoMode: boolean;
+    /** Prod landing "Try the live demo" target (the dev site). */
+    demoUrl?: string;
+  }) {
     const site = existsSync(join(WEB_DIST, 'index.html'))
       ? Source.asset(WEB_DIST)
       : Source.data(

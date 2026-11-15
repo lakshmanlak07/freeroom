@@ -6,7 +6,8 @@
   "scripts": {
     "smoke": "playwright test",
     "lighthouse": "tsx lighthouse.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "pitch": "tsx pitch.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

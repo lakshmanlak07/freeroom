@@ -66,7 +66,24 @@ export function LandingPage() {
                 Try the demo
               </Link>
             )}
+            {!config.demoMode && config.demoUrl && (
+              <a
+                href={config.demoUrl}
+                className={cn(
+                  buttonVariants({ size: 'lg', variant: 'light' }),
+                  'ring-2 ring-white/70',
+                )}
+              >
+                Try the live demo →
+              </a>
+            )}
           </div>
+          {!config.demoMode && config.demoUrl && (
+            <p className="mt-3 text-sm text-white/85">
+              The demo site has sample campus data and ready-made demo accounts. This site is the
+              production deployment.
+            </p>
+          )}
         </div>
       </header>
 

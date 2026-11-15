@@ -38,7 +38,7 @@ export function suppressNag(stack: Stack) {
     IAM5(`${arn('Data/Table')}/index/*`),
     'GSI ARNs (table/index/*): every DynamoDB grant carries a dynamodb:LeadingKeys condition limiting it to specific partition-key prefixes (asserted in stack.test.ts).',
   );
-  for (const fn of ['Async/SyncFn', 'Async/SweeperFn', 'EdgeWaf/Handler']) {
+  for (const fn of ['Async/SyncFn', 'Async/SweeperFn', 'Async/DemoResetFn', 'EdgeWaf/Handler']) {
     if (find(fn))
       ack(
         null,

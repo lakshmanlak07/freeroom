@@ -28,6 +28,8 @@ export interface FreeRoomStackProps extends StackProps {
   githubOidc?: boolean;
   /** Bedrock model/profile for natural-language search; omit = deterministic parser only. */
   nlModelId?: string;
+  /** Public demo site linked from the (non-demo) prod landing page. */
+  demoUrl?: string;
 }
 
 /** The ONE FreeRoom stack per stage (CLAUDE.md), composed of constructs. */
@@ -64,7 +66,7 @@ export class FreeRoomStack extends Stack {
     // The SPA calls the API through CloudFront (/api/*), so WAF + HTTPS + headers cover it.
     // CloudFormation resolves the secret at deploy time (dynamic reference); it never sits in git.
     const apiUrl = web.routeApi(api.httpApi, data.originVerify.secretValue.unsafeUnwrap());
-    const async = new Async(this, 'Async', { stage, data });
+    const async = new Async(this, 'Async', { stage, data, demoReset: props.demoMode });
     const obs = new Observability(this, 'Observability', {
       stage,
       alarmEmail: props.alarmEmail,
@@ -77,6 +79,7 @@ export class FreeRoomStack extends Stack {
         async.syncFn,
         async.onChangeFn,
         auth.preTokenFn,
+        ...(async.demoResetFn ? [async.demoResetFn] : []),
       ],
       waf: edge && { webAclName: edge.webAclName },
     });
@@ -85,6 +88,7 @@ export class FreeRoomStack extends Stack {
       userPoolId: auth.userPool.userPoolId,
       clientId: auth.client.userPoolClientId,
       demoMode: props.demoMode,
+      ...(!props.demoMode && props.demoUrl && { demoUrl: props.demoUrl }),
     });
 
     const out = (name: string, value: string) => new CfnOutput(this, name, { value });

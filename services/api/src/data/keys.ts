@@ -28,6 +28,8 @@ export const keys = {
   injectedPk: 'MOCK25LIVE',
   /** Demo alias → userId map (Cognito subs when deployed); written by postDeploy. */
   demoIds: { PK: 'DEMO', SK: 'IDS' },
+  /** When the demo was last reset (admin button or the 2-hourly dev schedule). */
+  demoLastReset: { PK: 'DEMO', SK: 'LAST_RESET' },
 
   // P3: identity, contact, claims, notifications
   userPrivate: (id: string) => ({ PK: `USER#${id}`, SK: 'PRIVATE' }),

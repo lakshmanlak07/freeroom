@@ -20,6 +20,7 @@ const stack = new FreeRoomStack(app, `FreeRoom-${stage}`, {
   githubRepo: ctx('githubRepo') ?? 'lakshmanlak07/freeroom',
   githubOidc: ctx('githubOidc') === 'true',
   // Natural-language search via Bedrock (cdk.json default on); the parser works without it.
+  demoUrl: ctx('demoUrl'),
   nlModelId: ctx('nlBedrock') === 'false' ? undefined : (ctx('nlModelId') ?? undefined),
   // Prod: its own bootstrap (cdk bootstrap --qualifier frprod --toolkit-stack-name CDKToolkit-frprod).
   synthesizer: new DefaultStackSynthesizer({ qualifier: bootstrapQualifier(stage) }),

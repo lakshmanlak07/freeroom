@@ -49,3 +49,15 @@ describe('demo seed', { timeout: 240_000 }, () => {
       for (const c of cls) expect(x.start < c.end && c.start < x.end).toBe(false);
   });
 });
+
+describe('demo reset status (F3)', () => {
+  it('records who reset and when; admin-only', async () => {
+    const t = await setupTestApp({ now: NOW });
+    expect((await t.req('admin1', 'GET', '/demo/status')).body).toEqual({ lastReset: null });
+    expect((await t.req('admin1', 'POST', '/demo/reset')).status).toBe(200);
+    expect((await t.req('admin1', 'GET', '/demo/status')).body).toEqual({
+      lastReset: { at: NOW.toISOString(), by: 'admin' },
+    });
+    expect((await t.req('student1', 'GET', '/demo/status')).status).toBe(403);
+  });
+});

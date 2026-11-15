@@ -2,17 +2,15 @@
  * Mock 25Live endpoints + Demo Controls. Mounted only when DEMO_MODE is on; createApp refuses to
  * enable them in prod (CLAUDE.md: never enable demo endpoints in prod). Demo routes are admin-only.
  */
-import { ScanCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { IsoDateTime } from '@freeroom/shared';
 import { addDays, campusDay, campusDayStart, can } from '@freeroom/domain';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Ctx, Env } from '../app';
 import { clearBusyCache } from '../availability';
-import type { Item } from '../data/db';
 import { keys } from '../data/keys';
 import { getReservation } from '../data/reservations';
-import { getDemoIds, seedDemo } from '../demoSeed';
+import { lastDemoReset, resetDemo } from '../demoReset';
 import { AppError, parse } from '../errors';
 import { sweep } from '../sweeper';
 import { injectClass, loadInjected, syncSchedule } from '../sync/syncSchedule';
@@ -115,51 +113,18 @@ export function demoRoutes(ctx: Ctx) {
   /** Wipe reservations/claims/notifications/injected classes, resync, then re-seed the demo. */
   r.post('/demo/reset', async (c) => {
     adminOnly(c);
-    const doomed: Item[] = [];
-    let start: Item | undefined;
-    do {
-      const page = await ctx.db.doc.send(
-        new ScanCommand({
-          TableName: ctx.db.table,
-          ExclusiveStartKey: start,
-          ProjectionExpression: 'PK, SK, kind',
-        }),
-      );
-      for (const i of page.Items ?? []) {
-        const pk = String(i.PK);
-        const sk = String(i.SK);
-        if (
-          pk.startsWith(keys.prefix.res) ||
-          pk.startsWith(keys.prefix.idemp) ||
-          pk === keys.injectedPk ||
-          sk === keys.quota('x').SK ||
-          sk === keys.claimQuota('x').SK ||
-          sk.startsWith(keys.prefix.notif) ||
-          (sk === keys.lock('x', 'x').SK && i.kind === 'reservation')
-        ) {
-          doomed.push({ PK: i.PK, SK: i.SK });
-        }
-      }
-      start = page.LastEvaluatedKey as Item | undefined;
-    } while (start);
-    for (let i = 0; i < doomed.length; i += 25) {
-      await ctx.db.doc.send(
-        new BatchWriteCommand({
-          RequestItems: {
-            [ctx.db.table]: doomed.slice(i, i + 25).map((Key) => ({ DeleteRequest: { Key } })),
-          },
-        }),
-      );
-    }
-    const sync = await syncSchedule({
-      db: ctx.db,
-      source: ctx.source,
-      now: ctx.now(),
-      log: c.get('log'),
-    });
-    const seeded = await seedDemo(ctx.db, await getDemoIds(ctx.db), ctx.now());
+    const result = await resetDemo(
+      { db: ctx.db, source: ctx.source, now: ctx.now(), log: c.get('log') },
+      'admin',
+    );
     clearBusyCache();
-    return c.json({ deleted: doomed.length, sync, seeded });
+    return c.json(result);
+  });
+
+  /** Demo panel: when was the demo last reset (by an admin or the 2-hourly schedule)? */
+  r.get('/demo/status', async (c) => {
+    adminOnly(c);
+    return c.json({ lastReset: await lastDemoReset(ctx.db) });
   });
   return r;
 }

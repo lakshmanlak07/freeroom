@@ -103,27 +103,30 @@ export function LoginPage() {
           </h2>
 
           {config.demoMode && step === 'signIn' && (
-            <div className="mt-6 rounded-2xl border border-line bg-cream p-4">
-              <p className="text-sm font-semibold">Try the demo</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+            <section
+              aria-labelledby="demo-h"
+              className="mt-6 rounded-2xl border-2 border-brown bg-cream p-5 shadow-card"
+            >
+              <h3 id="demo-h" className="text-lg font-bold text-brown">
+                Try the live demo
+              </h3>
+              <p className="mt-1 text-sm text-espresso">
+                Find a room on the <strong>Map</strong>, reserve it on its timeline, request a held
+                room, then (as Admin) open <strong>Demo</strong> to inject a class conflict.
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 {DEMO.map((d) => (
-                  <Button
-                    key={d.id}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => quick(d.id)}
-                    disabled={busy}
-                  >
+                  <Button key={d.id} onClick={() => quick(d.id)} disabled={busy}>
                     Demo as {d.label}
                   </Button>
                 ))}
               </div>
               {mode === 'cognito' && (
-                <p className="mt-2 text-xs text-muted">
-                  Fills the demo email — enter the demo password you were given.
+                <p className="mt-3 text-xs text-muted">
+                  The email fills in for you. Enter the demo password from the submission page.
                 </p>
               )}
-            </div>
+            </section>
           )}
 
           {mode === 'dev' ? (

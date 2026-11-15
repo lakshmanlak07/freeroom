@@ -3,6 +3,7 @@
   "context": {
     "stage": "dev",
     "nlBedrock": "true",
-    "nlModelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    "nlModelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "demoUrl": "https://d36vb3bto2ikso.cloudfront.net"
   }
 }

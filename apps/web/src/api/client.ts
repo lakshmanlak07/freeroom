@@ -21,6 +21,7 @@ import {
   type ErrorCode,
   type RegisterRequest,
   ContactRevealResponseSchema,
+  DemoStatusSchema,
   MyClaimsResponseSchema,
   ReservationEventsResponseSchema,
   type ApproveMode,
@@ -167,6 +168,7 @@ export function createApi(baseUrl: string, authHeaders: () => Promise<Record<str
       fastForward: (reservationId: string) =>
         request('POST', '/demo/fast-forward', AnyObject, { body: { reservationId } }),
       reset: () => request('POST', '/demo/reset', AnyObject),
+      status: () => request('GET', '/demo/status', DemoStatusSchema),
     },
   };
 }

@@ -308,6 +308,13 @@ export const MarkReadRequestSchema = z.union([
   z.object({ all: z.literal(true) }),
 ]);
 
+// ---------- Demo (demo mode only) ----------
+/** GET /demo/status: when the demo was last reset (admin button or the 2-hourly schedule). */
+export const DemoStatusSchema = z.object({
+  lastReset: z.object({ at: IsoDateTime, by: z.enum(['admin', 'schedule']) }).nullable(),
+});
+export type DemoStatus = z.infer<typeof DemoStatusSchema>;
+
 // ---------- Admin ----------
 export const AdminReleaseRequestSchema = z.object({ reason: SafeText(200).optional() });
 export const SyncRunSchema = z.object({

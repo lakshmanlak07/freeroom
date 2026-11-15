@@ -6,6 +6,7 @@ import type { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { CfnSchedule } from 'aws-cdk-lib/aws-scheduler';
 import { Queue, QueueEncryption } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
+import { API_KEYS } from './api';
 import type { Data } from './data';
 import { READ, WRITE, apiFn, grantTable, type Stage } from './fn';
 
@@ -15,8 +16,14 @@ export class Async extends Construct {
   readonly syncFn: NodejsFunction;
   readonly onChangeFn: NodejsFunction;
   readonly dlq: Queue;
+  /** Dev/demo only: resets + re-seeds the demo every 2 hours. */
+  readonly demoResetFn?: NodejsFunction;
 
-  constructor(scope: Construct, id: string, props: { stage: Stage; data: Data }) {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: { stage: Stage; data: Data; demoReset?: boolean },
+  ) {
     super(scope, id);
     const { data, stage } = props;
     const env = { TABLE_NAME: data.table.tableName, STAGE: stage, NODE_ENV: 'production' };
@@ -104,5 +111,24 @@ export class Async extends Construct {
     schedule('SweepEveryMinute', this.sweeperFn, 'rate(1 minute)');
     schedule('SyncDaytime', this.syncFn, 'cron(0/10 6-22 * * ? *)', 'America/New_York'); // 06:00–22:50
     schedule('SyncOvernight', this.syncFn, 'cron(0 23,0-5 * * ? *)', 'America/New_York'); // hourly 23:00–05:00
+
+    // Demo mode only (never prod): judges can break things; the demo heals itself every 2 h.
+    if (props.demoReset && stage !== 'prod') {
+      this.demoResetFn = apiFn(this, 'DemoResetFn', {
+        stage,
+        entry: 'demoResetLambda.ts',
+        timeoutSec: 120,
+        memoryMb: 1024,
+        environment: {
+          ...env,
+          DEMO_MODE: 'true',
+          TWENTYFIVE_LIVE_SECRET_ARN: data.twentyFiveLive.secretArn,
+        },
+      });
+      grantTable(this.demoResetFn, data.table, [...READ, ...WRITE, 'Scan'], [...API_KEYS, 'DEMO']);
+      data.twentyFiveLive.grantRead(this.demoResetFn);
+      this.demoResetFn.grantInvoke(role);
+      schedule('DemoResetEvery2h', this.demoResetFn, 'rate(2 hours)');
+    }
   }
 }

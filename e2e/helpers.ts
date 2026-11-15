@@ -29,6 +29,14 @@ export const OWNER = user(process.env.SMOKE_OWNER ?? 'smoke1');
 export const CLAIMER = user(process.env.SMOKE_CLAIMER ?? 'smoke2');
 
 export async function login(page: Page, u: TestUser) {
+  // The demo site's first-visit guided tour would cover the page; tests start past it.
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('freeroom.tour.v1', 'done');
+    } catch {
+      /* storage blocked */
+    }
+  });
   await page.goto('/login');
   const devId = page.getByLabel('Dev user id');
   const email = page.getByLabel('Email');

@@ -99,7 +99,7 @@ describe('IAM', () => {
       policies(t).filter((p) =>
         p.Properties.PolicyDocument.Statement.some((s) => actions(s).includes('dynamodb:Scan')),
       );
-    expect(scans(dev)).toHaveLength(1);
+    expect(scans(dev)).toHaveLength(2); // ApiFn (admin reset) + DemoResetFn (scheduled reset)
     expect(scans(prod)).toHaveLength(0);
   });
 });
@@ -158,7 +158,7 @@ describe('Api', () => {
     ) as {
       Properties: { Runtime: string; Architectures: string[] };
     }[];
-    expect(fns).toHaveLength(6);
+    expect(fns).toHaveLength(7); // incl. the dev-only DemoResetFn
     for (const f of fns)
       expect([f.Properties.Runtime, f.Properties.Architectures]).toEqual(['nodejs24.x', ['arm64']]);
   });
@@ -398,5 +398,17 @@ describe('P9 security review fixes', () => {
     expect(assumable(prod).join()).toContain('cdk-frprod-');
     expect(assumable(prod).join()).not.toContain('hnb659fds');
     expect(assumable(dev).join()).not.toContain('frprod');
+  });
+});
+
+describe('F3 judge-proof demo', () => {
+  it('dev resets the demo every 2 hours; prod has no reset function or schedule', () => {
+    dev.hasResourceProperties('AWS::Scheduler::Schedule', { ScheduleExpression: 'rate(2 hours)' });
+    const resetFns = (t: Template) =>
+      Object.values(t.findResources('AWS::Lambda::Function')).filter((f) =>
+        JSON.stringify(f).includes('DEMO_MODE":"true'),
+      );
+    expect(resetFns(prod)).toHaveLength(0);
+    expect(JSON.stringify(prod.toJSON())).not.toContain('rate(2 hours)');
   });
 });

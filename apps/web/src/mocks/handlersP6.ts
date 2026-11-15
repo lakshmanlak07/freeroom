@@ -250,6 +250,8 @@ export const handlersP6 = [
     return HttpResponse.json({ updated });
   }),
 
+  http.get('*/demo/status', () => HttpResponse.json({ lastReset: null })),
+
   http.post('*/demo/:action', async ({ request, params }) => {
     await delay(500);
     if (USERS[userOf(request)]?.role !== 'ADMIN') return err(403, 'FORBIDDEN', 'Admin only');

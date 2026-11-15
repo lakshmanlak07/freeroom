@@ -9,6 +9,8 @@ export interface AppConfig {
   mapName?: string;
   mapApiKey?: string;
   demoMode: boolean;
+  /** Prod only: the public demo site for the landing page's "Try the live demo". */
+  demoUrl?: string;
 }
 
 /** Local: same-origin /api, proxied by Vite to the local API (deployed: CloudFront /api/*). */

@@ -16,6 +16,7 @@ import { NotificationBell, useNotifications } from '@/pages/NotificationsPage';
 import { useConfig } from '@/config';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
+import { GuidedTour } from './GuidedTour';
 
 export const ROLE_LABEL: Record<Role, string> = {
   STUDENT: 'Student',
@@ -58,6 +59,7 @@ function Badge({ n }: { n?: number }) {
 
 export function AppShell() {
   const nav = useNav();
+  const config = useConfig();
   const { me, signOut } = useAuth();
   const location = useLocation();
   useEffect(() => {
@@ -125,6 +127,7 @@ export function AppShell() {
             <Outlet />
           </ErrorBoundary>
         </main>
+        {config.demoMode && <GuidedTour />}
       </div>
 
       <nav
