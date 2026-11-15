@@ -201,7 +201,8 @@ export class Web extends Construct {
     new BucketDeployment(this, 'Assets', {
       sources: [site],
       destinationBucket: this.bucket,
-      exclude: ['config.json'],
+      // demo-logins.json: uploaded to the dev bucket only, after deploy (never in git).
+      exclude: ['config.json', 'demo-logins.json'],
       distribution: this.distribution,
       distributionPaths: ['/*'],
       memoryLimit: 512,

@@ -58,10 +58,19 @@ export function LoginPage() {
     }
   };
 
-  const quick = (id: string) =>
-    mode === 'dev'
-      ? run(() => signInDev(id))()
-      : (setEmail(`${id}@demo.freeroom.test`), passwordRef.current?.focus());
+  // Demo site only: one-click sign-in for judges. /demo-logins.json is uploaded to the dev bucket
+  // after deploy (never in git, never on prod); without it, fall back to typing the password.
+  const quick = async (id: string) => {
+    if (mode === 'dev') return run(() => signInDev(id))();
+    const email = `${id}@demo.freeroom.test`;
+    setEmail(email);
+    const logins = await fetch('/demo-logins.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? (r.json() as Promise<Record<string, string>>) : {}))
+      .catch(() => ({}) as Record<string, string>);
+    const pw = config.demoMode ? (logins as Record<string, string>)[id] : undefined;
+    if (pw) return run(() => signIn(email, pw))();
+    passwordRef.current?.focus();
+  };
 
   return (
     <div className="grid min-h-dvh md:grid-cols-[1.1fr_1fr]">
@@ -120,14 +129,14 @@ export function LoginPage() {
               </p>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {DEMO.map((d) => (
-                  <Button key={d.id} onClick={() => quick(d.id)} disabled={busy}>
+                  <Button key={d.id} onClick={() => void quick(d.id)} disabled={busy}>
                     Demo as {d.label}
                   </Button>
                 ))}
               </div>
               {mode === 'cognito' && (
                 <p className="mt-3 text-xs text-muted">
-                  The email fills in for you. Enter the demo password from the submission page.
+                  One click signs you in to a demo account (sample data, resets every 2 hours).
                 </p>
               )}
             </section>

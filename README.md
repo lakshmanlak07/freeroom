@@ -17,7 +17,7 @@ targets), has Light / Dark / System themes, and a small fox that keeps you compa
   Apple/Google/Outlook calendar, directions, and Join. Aliases only, never contact details.
 
 - **Live demo** (sample data, demo accounts, guided tour, resets itself every 2 hours):
-  https://d36vb3bto2ikso.cloudfront.net
+  https://d36vb3bto2ikso.cloudfront.net — **judges: Sign in → "Demo as Student / Faculty / Admin" signs you in with one click, no password needed.**
 - **Production:** https://d14abz6mtvapjq.cloudfront.net (no demo data; "Try the live demo" links
   to the demo site)
 - **Pitch kit:** [docs/PITCH.md](docs/PITCH.md) · **Submission:** [docs/SUBMISSION.md](docs/SUBMISSION.md)

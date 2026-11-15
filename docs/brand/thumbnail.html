@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; width: 1500px; height: 1000px; overflow: hidden;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif; }
+  .bg { position: absolute; inset: 0;
+    background: linear-gradient(150deg, #5a2e00 0%, #7b3f00 45%, #b0703a 100%); }
+  .glow { position: absolute; inset: 0; background: radial-gradient(circle at 20% 15%, rgba(255,255,255,.18), transparent 40%); }
+  .left { position: absolute; left: 90px; top: 80px; width: 690px; color: #fff; }
+  .brand { display: flex; align-items: center; gap: 22px; font-size: 44px; font-weight: 800; letter-spacing: -0.5px; }
+  .brand img { width: 92px; height: 92px; }
+  h1 { font-size: 92px; line-height: 1.02; margin: 36px 0 0; font-weight: 800; letter-spacing: -2px; }
+  p.sub { font-size: 32px; line-height: 1.35; margin: 28px 0 0; color: rgba(255,255,255,.92); }
+  .chips { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+  .chip { background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.35); border-radius: 999px;
+    padding: 10px 20px; font-size: 22px; font-weight: 600; color: #fff; }
+  .aws { position: absolute; left: 90px; bottom: 44px; color: rgba(255,255,255,.85); font-size: 24px; font-weight: 600; }
+  .phone { position: absolute; width: 330px; border-radius: 44px; border: 12px solid #1c120b;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,.55); overflow: hidden; background: #000; }
+  .phone img { display: block; width: 100%; }
+  .p1 { right: 330px; top: 120px; transform: rotate(-6deg); }
+  .p2 { right: 70px; top: 200px; transform: rotate(5deg); }
+</style>
+</head>
+<body>
+  <div class="bg"></div><div class="glow"></div>
+  <div class="left">
+    <div class="brand"><img src="logo.png" alt="" /> FreeRoom</div>
+    <h1>Google Maps for empty classrooms.</h1>
+    <p class="sub">See every free room on campus right now, reserve it in two taps, invite your group, and walk there.</p>
+    <div class="chips">
+      <span class="chip">Live free-room map</span>
+      <span class="chip">No double booking</span>
+      <span class="chip">Classes always win</span>
+      <span class="chip">Get me there</span>
+      <span class="chip">QR group invites</span>
+    </div>
+  </div>
+  <div class="aws">Serverless on AWS · DynamoDB · Lambda · Location Service · Bedrock · CDK</div>
+  <div class="phone p1"><img src="../screenshots/map-light-mobile.png" alt="" /></div>
+  <div class="phone p2"><img src="../screenshots/directions-light-mobile.png" alt="" /></div>
+</body>
+</html>
