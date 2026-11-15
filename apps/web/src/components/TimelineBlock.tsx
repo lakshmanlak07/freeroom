@@ -63,7 +63,7 @@ export const TimelineBlock = forwardRef<HTMLButtonElement, Props>(function Timel
   const mine = item.kind === 'reservation' && item.isMine;
   const tiny = width < 2.2; // < ~20 min: icon only
   const narrow = width < 6.5; // < ~1h: stacked short label, no time (full details in the popover)
-  const shortLabel = isClass ? (item.courseCode ?? item.name) : mine ? 'Yours' : item.ownerAlias;
+  const shortLabel = isClass ? (item.courseCode ?? item.name) : mine ? 'You' : item.ownerAlias; // "You" is inside the accessible name (axe label-content-name-mismatch)
   const Icon = isClass ? BookOpen : mine ? Star : UserRound;
 
   return (
@@ -104,7 +104,8 @@ export const TimelineBlock = forwardRef<HTMLButtonElement, Props>(function Timel
               <span className="min-w-0 text-[11px] leading-tight break-words">
                 {shortLabel.split(' ').map((w, k) => (
                   <span key={k} className="block truncate">
-                    {w}
+                    {/* trailing space: text reads "Night Owl", not "NightOwl" (matches the label) */}
+                    {w}{' '}
                   </span>
                 ))}
               </span>

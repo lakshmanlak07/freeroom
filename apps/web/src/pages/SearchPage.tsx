@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, Skeleton } from '@/components/EmptyState';
 import { EQUIPMENT } from '@/components/Equipment';
 import { RoomCard } from '@/components/RoomCard';
+import { PeopleInput } from '@/components/PeopleInput';
 import { SearchChips, filtersToParams } from '@/components/SearchChips';
 import { Button, inputClass } from '@/components/ui/button';
 import { addDays, campusDay, campusLocalToUtc } from '@/lib/time';
@@ -149,18 +150,14 @@ export function SearchPage() {
               ))}
             </select>
           </label>
-          <label className="text-sm font-medium">
-            Seats at least <span className="tabular">{get('minCapacity') || 'any'}</span>
-            <input
-              type="range"
-              min={0}
-              max={300}
-              step={4}
-              value={Number(get('minCapacity')) || 0}
-              onChange={(e) => set({ minCapacity: e.target.value === '0' ? null : e.target.value })}
-              className="mt-3 w-full accent-brown"
-            />
-          </label>
+          <PeopleInput
+            id="min-capacity"
+            label="People"
+            value={Number(get('minCapacity')) || null}
+            onChange={(n) => set({ minCapacity: n ? String(n) : null })}
+            allowEmpty
+            placeholder="Any"
+          />
           <label className="text-sm font-medium">
             Sort by
             <select

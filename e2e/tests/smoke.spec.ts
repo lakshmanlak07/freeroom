@@ -49,6 +49,7 @@ test('natural-language search → editable filter chips', async () => {
 });
 
 test('reserve a free slot', async () => {
+  await expect(owner.locator('a[href^="/rooms/"]').first()).toBeVisible();
   const hrefs = await owner
     .locator('a[href^="/rooms/"]')
     .evaluateAll((as) => as.map((a) => a.getAttribute('href')!));

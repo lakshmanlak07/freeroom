@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { fmtDuration, fmtRange, fmtTime, useNow } from '@/lib/time';
+import { PeopleInput } from './PeopleInput';
 import { useToast } from './Toast';
 import { Button, inputClass } from './ui/button';
 
@@ -33,6 +34,7 @@ export function ClaimDialog({
   const toast = useToast();
   const [message, setMessage] = useState('');
   const [partySize, setPartySize] = useState(2);
+  const [partyOk, setPartyOk] = useState(true);
   const now = useNow(15_000);
   const cutoff = reservation ? cutoffAt(new Date(reservation.start)) : null;
   const closed = !!cutoff && now >= cutoff; // BR-6: no claims at or after start − 4h
@@ -98,17 +100,13 @@ export function ClaimDialog({
                 {message.length}/280
               </span>
             </label>
-            <label className="block text-sm font-medium">
-              Party size
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={partySize}
-                onChange={(e) => setPartySize(Math.max(1, Number(e.target.value) || 1))}
-                className={`${inputClass} mt-1 tabular`}
-              />
-            </label>
+            <PeopleInput
+              id="claim-party"
+              label="Party size"
+              value={partySize}
+              onChange={(n) => setPartySize(n ?? 1)}
+              onValidChange={setPartyOk}
+            />
             {cutoff && (
               <p
                 className={
@@ -142,7 +140,11 @@ export function ClaimDialog({
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={claim.isPending || closed}>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={claim.isPending || closed || !partyOk}
+              >
                 {claim.isPending ? 'Sending…' : 'Send request'}
               </Button>
             </div>

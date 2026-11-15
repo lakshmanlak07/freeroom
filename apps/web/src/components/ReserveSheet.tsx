@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { campusLocalToUtc, fmtDay, fmtRange, fmtTime } from '@/lib/time';
+import { PeopleInput } from './PeopleInput';
 import { useToast } from './Toast';
 import type { ScheduleItem } from './TimelineBlock';
 import { Button, inputClass } from './ui/button';
@@ -83,6 +84,7 @@ export function ReserveSheet({
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(0);
   const [partySize, setPartySize] = useState(1);
+  const [partyOk, setPartyOk] = useState(true);
   const [purpose, setPurpose] = useState('');
 
   useEffect(() => {
@@ -226,20 +228,15 @@ export function ReserveSheet({
             <p className="-mt-2 text-xs text-muted">
               Up to {maxMinutes / 60}h for {ROLE_LABEL[role]}, on 15-minute marks.
             </p>
-            <label className="text-sm font-medium">
-              Party size
-              <input
-                type="number"
-                min={1}
-                max={room.capacity}
-                value={partySize}
-                onChange={(e) =>
-                  setPartySize(Math.max(1, Math.min(room.capacity, Number(e.target.value) || 1)))
-                }
-                className={`${inputClass} mt-1 tabular`}
-              />
-              <span className="text-xs font-normal text-muted">Room seats {room.capacity}.</span>
-            </label>
+            <PeopleInput
+              id="reserve-party"
+              label="Party size"
+              value={partySize}
+              onChange={(n) => setPartySize(n ?? 1)}
+              onValidChange={setPartyOk}
+              max={room.capacity}
+              hint={`Room seats ${room.capacity}.`}
+            />
             <label className="text-sm font-medium">
               Purpose <span className="font-normal text-muted">(optional)</span>
               <input
@@ -272,7 +269,7 @@ export function ReserveSheet({
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={reserve.isPending || !!blockingAdvice}
+                disabled={reserve.isPending || !!blockingAdvice || !partyOk}
               >
                 {reserve.isPending ? 'Reserving…' : 'Reserve'}
               </Button>

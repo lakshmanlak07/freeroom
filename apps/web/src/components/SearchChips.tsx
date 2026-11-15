@@ -5,7 +5,9 @@
  */
 import type { Building, Equipment, NaturalSearchResponse } from '@freeroom/shared';
 import { Sparkles, Wand2, X } from 'lucide-react';
+import { useState } from 'react';
 import { EQUIPMENT } from '@/components/Equipment';
+import { checkPeople } from '@/components/PeopleInput';
 import { campusDay, campusLocalToUtc, fmtDay, fmtRange, formatCampus } from '@/lib/time';
 
 export const EXAMPLES = [
@@ -42,6 +44,9 @@ interface Props {
 export function SearchChips({ sp, set, buildings, onExample }: Props) {
   const get = (k: string) => sp.get(k) ?? '';
   const equipment = get('equipment').split(',').filter(Boolean) as Equipment[];
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [capError, setCapError] = useState<string | null>(null);
   const chips: { key: string; label: string; clear: Record<string, string | null> }[] = [];
   if (get('minCapacity')) {
     chips.push({
@@ -112,7 +117,55 @@ export function SearchChips({ sp, set, buildings, onExample }: Props) {
           key={c.key}
           className="inline-flex items-center gap-1 rounded-full border border-brown/30 bg-white py-1 pr-1 pl-3 text-sm font-medium text-espresso"
         >
-          {c.label}
+          {c.key === 'cap' && editing ? (
+            <span className="inline-flex items-center gap-1">
+              <label htmlFor="chip-capacity">Capacity ≥</label>
+              <input
+                id="chip-capacity"
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={draft}
+                aria-invalid={!!capError}
+                aria-describedby={capError ? 'chip-capacity-error' : undefined}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  setCapError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditing(false);
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+                onBlur={() => {
+                  const r = checkPeople(draft);
+                  if (!r.ok) return setCapError(r.error);
+                  set({ minCapacity: String(r.value) });
+                  setEditing(false);
+                }}
+                className="h-8 w-16 rounded-lg border border-line px-2 text-center text-base tabular"
+              />
+              {capError && (
+                <span id="chip-capacity-error" role="alert" className="text-xs text-amber-ink">
+                  {capError}
+                </span>
+              )}
+            </span>
+          ) : c.key === 'cap' ? (
+            <button
+              type="button"
+              className="rounded-full hover:underline"
+              aria-label={`${c.label}, edit people count`}
+              onClick={() => {
+                setDraft(get('minCapacity'));
+                setEditing(true);
+              }}
+            >
+              {c.label}
+            </button>
+          ) : (
+            c.label
+          )}
           <button
             type="button"
             onClick={() => set({ ...c.clear })}
