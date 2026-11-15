@@ -128,7 +128,7 @@ pnpm lint && pnpm typecheck
 pnpm test                       # 224 tests: domain rules, API integration on DynamoDB Local,
                                 # 50-way concurrency, adversarial/IDOR audit, infra assertions
 pnpm audit --audit-level high   # CI fails on high/critical
-npx --prefix infra cdk synth -c stage=prod   # cdk-nag AwsSolutions: fails on unjustified findings
+pnpm --filter @freeroom/infra exec cdk synth -c stage=prod   # cdk-nag AwsSolutions: fails on unjustified findings
 pnpm --filter @freeroom/api e2e              # 12 end-to-end API flows against a running API
 BASE_URL=http://localhost:5173 SMOKE_OWNER=faculty1 SMOKE_CLAIMER=tutor1 pnpm --filter @freeroom/e2e smoke
 BASE_URL=http://localhost:5173 SMOKE_OWNER=faculty1 pnpm --filter @freeroom/e2e lighthouse   # a11y ≥ 95

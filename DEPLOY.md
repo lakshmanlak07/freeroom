@@ -20,9 +20,9 @@ uses afterwards.
 
 ```bash
 aws login
-npx --prefix infra cdk bootstrap aws://<ACCOUNT_ID>/us-east-2
+pnpm --filter @freeroom/infra exec cdk bootstrap aws://<ACCOUNT_ID>/us-east-2
 # prod gets its own bootstrap, so the dev deploy role can never assume prod's deploy roles
-npx --prefix infra cdk bootstrap aws://<ACCOUNT_ID>/us-east-2 --qualifier frprod --toolkit-stack-name CDKToolkit-frprod -c stage=prod
+pnpm --filter @freeroom/infra exec cdk bootstrap aws://<ACCOUNT_ID>/us-east-2 --qualifier frprod --toolkit-stack-name CDKToolkit-frprod -c stage=prod
 ```
 
 Deploy dev **first**. It creates the account-wide GitHub OIDC provider that prod imports.
