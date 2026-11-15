@@ -120,7 +120,7 @@ export function AppShell() {
         )}
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-col pb-16 md:pb-0">
+      <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <TopBar />
         <main id="main" tabIndex={-1} className="flex-1 outline-none">
           <ErrorBoundary>
@@ -132,7 +132,7 @@ export function AppShell() {
 
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="flex">
           {nav.map(({ to, label, Icon, badge }) => (
@@ -142,7 +142,7 @@ export function AppShell() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted',
+                    'relative flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted',
                     isActive && 'text-brown',
                   )
                 }
@@ -177,7 +177,7 @@ function TopBar() {
   }, [onSearch, params]);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white/90 px-4 py-3 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white/90 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur md:px-6">
       <Link
         to="/"
         className="flex items-center gap-1.5 font-bold text-brown md:hidden"
@@ -207,12 +207,12 @@ function TopBar() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Room for 6 with a projector near the library at 3pm"
-          className="h-10 w-full max-w-2xl rounded-xl border border-line bg-cream pr-3 pl-9 text-sm placeholder:text-muted/80"
+          className="h-11 w-full max-w-2xl rounded-xl border border-line bg-cream pr-3 pl-9 text-base placeholder:text-muted/80 md:h-10 md:text-sm"
         />
       </form>
       {config.demoMode && (
         <span className="shrink-0 rounded-full border border-amber/40 bg-amber/10 px-2.5 py-1 text-xs font-semibold text-amber-ink">
-          Demo data
+          Demo<span className="hidden sm:inline"> data</span>
         </span>
       )}
       <NotificationBell />

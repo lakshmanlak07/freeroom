@@ -169,7 +169,8 @@ export function ReserveSheet({
     <Dialog.Root open={!!range} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-espresso/30" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
+        {/* Bottom sheet on phones, right-side sheet from md up. */}
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] w-full flex-col overflow-y-auto rounded-t-3xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:max-w-md md:rounded-none">
           <div className="bg-rail px-6 py-5 text-white">
             <div className="flex items-start justify-between">
               <div>

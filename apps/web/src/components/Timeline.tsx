@@ -39,6 +39,8 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
   const [active, setActive] = useState(0);
   const [drag, setDrag] = useState<{ a: number; b: number; moved: boolean } | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  // Touch: the track pans; a tap sets the start, a second tap the end.
+  const [anchor, setAnchor] = useState<number | null>(null);
 
   const total = grid.end.getTime() - grid.start.getTime();
   const pct = (t: number) => Math.max(0, Math.min(100, ((t - grid.start.getTime()) / total) * 100));
@@ -67,6 +69,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
   };
 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') return; // taps are handled on pointerup (a pan cancels them)
     const s = slotAt(e.clientX);
     if (blocked(s)) return;
     trackRef.current!.setPointerCapture(e.pointerId);
@@ -77,7 +80,15 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
     if (drag) setDrag({ ...drag, b: s, moved: drag.moved || s !== drag.a });
     else setHover(blocked(s) ? null : s);
   };
-  const onUp = () => {
+  const onUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') {
+      const s = slotAt(e.clientX);
+      if (blocked(s)) return;
+      if (anchor === null) return setAnchor(s);
+      const [lo, hi] = extend(anchor, s);
+      setAnchor(null);
+      return onSelect(new Date(slotStart(lo)), new Date(slotStart(hi + 1)));
+    }
     if (!drag) return;
     const [lo, hi] = drag.moved ? extend(drag.a, drag.b) : extend(drag.a, drag.a + 3); // click = up to 1h
     setDrag(null);
@@ -94,7 +105,13 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowKey]);
 
-  const sel = drag && (drag.moved ? extend(drag.a, drag.b) : ([drag.a, drag.a] as const));
+  const sel = drag
+    ? drag.moved
+      ? extend(drag.a, drag.b)
+      : ([drag.a, drag.a] as const)
+    : anchor !== null
+      ? ([anchor, anchor] as const)
+      : null;
   const nowPct = now >= grid.start && now <= grid.end ? pct(now.getTime()) : null;
   const pastPct = now <= grid.start ? 0 : now >= grid.end ? 100 : (nowPct ?? 0);
 
@@ -142,7 +159,7 @@ export function Timeline({ day, items, now, maxMinutes, onSelect, onRequest }: P
           role="group"
           aria-label="Day timeline"
           aria-describedby="timeline-help"
-          className="relative h-24 touch-none select-none rounded-xl bg-free-50/60"
+          className="relative h-24 touch-pan-x select-none rounded-xl bg-free-50/60"
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}

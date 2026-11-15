@@ -166,7 +166,7 @@ export function NotificationBell() {
   return (
     <Popover.Root>
       <Popover.Trigger
-        className="relative grid size-10 place-items-center rounded-xl hover:bg-cream"
+        className="relative grid size-11 shrink-0 place-items-center rounded-xl hover:bg-cream md:size-10"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
       >
         <Bell className="size-5" aria-hidden />

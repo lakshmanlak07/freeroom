@@ -196,7 +196,7 @@ export default function MapPage() {
             <TriangleAlert className="mx-auto size-6 text-amber-ink" aria-hidden />
             <p className="mt-2 font-semibold">The map didn’t load</p>
             <p className="mt-1 text-sm text-muted">
-              Every building is still in the list on the right. You can try the map again.
+              Every building is still in the Buildings list. You can try the map again.
             </p>
             <Button className="mt-3" size="sm" onClick={() => setAttempt((n) => n + 1)}>
               <RotateCcw className="size-4" aria-hidden /> Retry
@@ -206,9 +206,10 @@ export default function MapPage() {
       </section>
 
       <aside
-        className="space-y-4 overflow-y-auto border-l border-line bg-cream p-4"
+        className="relative z-10 -mt-5 space-y-4 overflow-y-auto rounded-t-3xl border-line bg-cream p-4 shadow-[0_-8px_24px_-12px_rgb(43_26_14/0.25)] lg:mt-0 lg:rounded-none lg:border-l lg:shadow-none"
         aria-label="Buildings and rooms"
       >
+        <div aria-hidden className="mx-auto -mt-1 h-1.5 w-10 rounded-full bg-line lg:hidden" />
         {showList && (
           <nav aria-label="Buildings list">
             <h2 className="mb-2 text-sm font-semibold">Buildings{me ? ' · nearest first' : ''}</h2>

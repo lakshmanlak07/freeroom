@@ -124,17 +124,42 @@ export function SearchPage() {
           onClick={() => setShowFilters((v) => !v)}
         >
           <SlidersHorizontal className="size-4" aria-hidden />
-          {showFilters ? 'Hide filters' : `Filters${activeCount ? ` (${activeCount})` : ''}`}
+          Filters
+          {!!activeCount && (
+            <span className="grid min-w-6 place-items-center rounded-full bg-brown px-1.5 text-xs text-white tabular">
+              {activeCount}
+              <span className="sr-only"> active</span>
+            </span>
+          )}
         </Button>
+        {showFilters && (
+          <div
+            className="fixed inset-0 z-40 bg-espresso/40 md:hidden"
+            onClick={() => setShowFilters(false)}
+            aria-hidden
+          />
+        )}
+        {/* Phones: a bottom sheet over the results. md+: an inline panel, always shown. */}
         <form
           id="filters"
           aria-label="Filters"
           className={cn(
-            'gap-4 rounded-2xl border border-line bg-white p-4 shadow-card md:grid md:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0',
-            showFilters ? 'grid' : 'hidden',
+            'gap-4 border border-line bg-white p-4 shadow-card md:static md:z-auto md:grid md:max-h-none md:grid-cols-2 md:overflow-visible md:rounded-2xl md:pb-4 xl:grid-cols-4 [&>*]:min-w-0',
+            showFilters
+              ? 'fixed inset-x-0 bottom-0 z-50 m-0 grid max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(1rem+env(safe-area-inset-bottom))]'
+              : 'hidden',
           )}
           onSubmit={(e) => e.preventDefault()}
+          onKeyDown={(e) => e.key === 'Escape' && setShowFilters(false)}
         >
+          {showFilters && (
+            <div className="flex items-center justify-between md:hidden">
+              <h2 className="text-lg font-semibold">Filters</h2>
+              <Button type="button" autoFocus onClick={() => setShowFilters(false)}>
+                Show rooms
+              </Button>
+            </div>
+          )}
           <label className="text-sm font-medium">
             Building
             <select

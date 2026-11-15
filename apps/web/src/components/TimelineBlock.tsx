@@ -87,7 +87,10 @@ export const TimelineBlock = forwardRef<HTMLButtonElement, Props>(function Timel
             if (e.key === 'Enter' && item.kind === 'reservation' && item.claimable) onRequest(item);
             onKeyDown(e);
           }}
-          onClick={() => item.kind === 'reservation' && item.claimable && onRequest(item)}
+          // Tap (no hover on phones) opens the details; claimable blocks go straight to the request.
+          onClick={() =>
+            item.kind === 'reservation' && item.claimable ? onRequest(item) : setOpen(true)
+          }
           style={{ left: `${left}%`, width: `${width}%` }}
           className={cn(
             'absolute top-3 bottom-3 flex items-center gap-1.5 overflow-hidden rounded-lg text-left text-xs font-semibold text-white shadow-sm',

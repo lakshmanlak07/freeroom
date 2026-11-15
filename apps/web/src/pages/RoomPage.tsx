@@ -282,8 +282,14 @@ export function RoomPage() {
               onRequest={setClaim}
             />
             <p className="text-xs text-muted">
-              Click or drag on open space to reserve (15-minute steps). Hover or focus a block for
-              details.
+              <span className="pointer-coarse:hidden">
+                Click or drag on open space to reserve (15-minute steps). Hover or focus a block for
+                details.
+              </span>
+              <span className="hidden pointer-coarse:inline">
+                Tap a start time, then an end time (15-minute steps). Swipe to see the whole day;
+                tap a block for details.
+              </span>
             </p>
           </>
         ) : (

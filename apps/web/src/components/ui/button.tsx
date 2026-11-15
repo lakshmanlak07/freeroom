@@ -13,7 +13,12 @@ export const buttonVariants = cva(
         ghost: 'text-espresso hover:bg-cream',
         light: 'bg-white/15 text-white hover:bg-white/25',
       },
-      size: { default: 'h-10 px-4', sm: 'h-8 px-3 text-xs', lg: 'h-12 px-6 text-base' },
+      // 44px touch targets on phones; compact on desktop.
+      size: {
+        default: 'h-11 px-4 md:h-10',
+        sm: 'h-11 px-3 text-xs md:h-8',
+        lg: 'h-12 px-6 text-base',
+      },
     },
     defaultVariants: { variant: 'default', size: 'default' },
   },
@@ -29,4 +34,5 @@ export function Button({
 }
 
 export const inputClass =
-  'h-10 w-full min-w-0 rounded-xl border border-line bg-white px-3 text-sm text-espresso placeholder:text-muted/70';
+  // 16px on phones so iOS doesn't zoom on focus.
+  'h-11 w-full min-w-0 rounded-xl border border-line bg-white px-3 text-base text-espresso placeholder:text-muted/70 md:h-10 md:text-sm';
