@@ -59,3 +59,18 @@ payloads, sweeper poison items, ownerId-pinned cancel after a transfer, batch re
 drop keys), `services/api/test/logger.test.ts` (substring + free-text PII redaction),
 `apps/web/src/lib/time.test.ts` (URL param guards), `infra/test/stack.test.ts`
 (Permissions-Policy), `e2e/tests/audit.spec.ts`.
+
+## Feature-flagged additions (features.directions, features.invites)
+
+| Requirement | Code | Tests |
+|---|---|---|
+| Arrival verdict (free / class soon / busy / yours), 15-min "reserve when I arrive" | `packages/domain/src/arrival.ts`; `apps/web/src/components/directions/format.ts` | `packages/domain/test/arrival.test.ts` (boundaries, back-to-back, DST, rounding); `format.test.ts` |
+| Walking route via Amazon Location Routes v2, least-privilege IAM | `services/api/src/directions/router.ts`, `routes/directions.ts`; `infra/lib/api.ts` | `services/api/test/directions.test.ts`; stack test *dev: exactly geo-routes:CalculateRoutes on the AWS-provided routing provider* |
+| Location privacy (rounded ~10 m, never stored/logged), 20/min, 2-min cache | `routes/directions.ts`, `logger.ts` | `directions.test.ts` (*coordinates never reach the logs*, rate limit, cache) |
+| Directions UI (panel / bottom sheet, route draw-on, fox trot, states) | `components/directions/*`, `BottomSheet.tsx`, `pages/MapPage.tsx`, `fox/FoxCompanion.tsx` | `e2e/tests/directions.spec.ts` (prefill, blocked location, phone sheet, axe light+dark) |
+| Invite tokens: hash-only storage, one active link, revoke, 404 parity (BR-5) | `services/api/src/data/invites.ts`, `routes/invites.ts` | `invites.test.ts` (table scan, revoke/replace/expire/unknown → same 404, public preview privacy) |
+| Join: active + capacity (owner counts) in one transaction; attendees ≠ owners (BR-4) | `data/invites.ts` `joinReservation` | `invites.test.ts` (20 concurrent joins on capacity 5 → exactly 4; idempotent; owner can't join; attendee can't cancel) |
+| Attendee notifications (join/leave; cancel/release/class conflict/transfer) | `data/reservations.ts`, `data/claims.ts`, `notify/onChange.ts` | `invites.test.ts` (notify recipients), `onChange.test.ts` |
+| RFC 5545 calendar files + Google/Outlook links | `services/api/src/ics.ts`; `apps/web/src/lib/calendar.ts` | `ics.test.ts` (ical.js parse, escaping, folding, EDT/EST, snapshot); `calendar.test.ts`; e2e .ics parse |
+| Invite UI (booked card, QR ticket, public page, My Reservations) | `components/invites/*`, `pages/InvitePage.tsx`, `pages/MyReservationsPage.tsx` | `e2e/tests/invites.spec.ts` (reserve → invite → signed-out join → sign in → joined → owner notified; phone + axe light/dark) |
+| Feature flags (dev on, prod off) | `infra/bin/app.ts`, `infra/lib/api.ts`, `infra/lib/web.ts`, `apps/web/src/config.ts` | stack test *prod: flags off → no routing permission, no INVITE# access, no public invite routes* |

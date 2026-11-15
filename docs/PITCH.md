@@ -32,6 +32,15 @@ class can never kick you out by surprise, because the database makes double book
 | 0:40–0:55 | "Contact details are KMS-encrypted and only one Lambda can decrypt them. It works on your phone, in dark mode, and it's fully serverless on AWS for about eight dollars a month." | Phone + dark toggle |
 | 0:55–1:00 | "Plug in UMass's 25Live and SSO credentials and it's live. Configuration, not code." | Architecture slide |
 
+## 20-second beat: book → invite → walk (new)
+
+| Time | What you do | What you say |
+|---|---|---|
+| 0:00–0:05 | Reserve a room → the **You're booked** card pops (confetti, the fox celebrates) | "Booked. Now the part every study group needs." |
+| 0:05–0:10 | **Invite your group** → the ticket with its QR → hold your phone to the second screen; it scans and opens the invite | "One link, or one scan. No phone numbers swapped — just aliases." |
+| 0:10–0:14 | On the friend's screen: **Join** → sign in → back on the invite, **You're in!** | "They join in one tap, and it goes straight into their calendar." |
+| 0:14–0:20 | **Get me there** → the route draws on, the fox trots it, "7 min walk · Free for 1h 23m after you arrive" | "And it walks them there — and tells them the room will still be free when they arrive." |
+
 ## 3-minute script (follows PRD §14)
 
 | Time | Beat | What you do | What you say |
@@ -42,7 +51,7 @@ class can never kick you out by surprise, because the database makes double book
 | 1:10–1:40 | **Timeline** | Open **LGRT 0101** (on a weekend press **›** to Monday). Hover a purple striped block, then drag across free space → **Reserve**. The fox celebrates | "Classes are purple, striped and marked with a book; reservations are blue with a person. Hover a class and you get everything 25Live knows. Drag to reserve: two taps. Our fox approves." |
 | 1:40–2:20 | **The hard parts** | (a) Drag over a class → the sheet names the class and **Reserve** stays disabled. (b) Both windows on the same free slot, click **Reserve** together → one "Reserved", the other "already reserved". (c) Student window: **My reservations → Approve… → Share my contact** on Early Bird's request | "Try to book over a class: it names the class and won't let you, and the server enforces the same rule. Two people race for one slot: one wins, every time. That's one DynamoDB transaction with a lock per 15-minute slot, tested with 50 parallel requests. Need a held room? Ask. Only after the holder approves does the requester see the one contact the holder chose, and only one Lambda can decrypt it." |
 | 2:20–2:40 | **Resilience** | Admin window: **Demo → Room = Night Owl's room → Day → pick the reservation → Inject class conflict.** Student window: **Notifications** (lands within ~10 s) | "Now the registrar schedules a class in Night Owl's room. 25Live always wins: the reservation is released and Night Owl gets three free alternatives. One tap, rebooked." |
-| 2:40–3:00 | **Phone + architecture** | Hold up the phone (bottom sheet, dark mode), then the architecture slide | "It works on your phone and in dark mode. Under the hood it's serverless AWS: DynamoDB transactions, Streams for notifications, a one-minute sweeper enforcing the 4-hour confirm rule on the server clock, WAF, alarms, a runbook, 283 automated tests plus 48 browser tests. Plug in UMass's 25Live and SSO and it's live." |
+| 2:40–3:00 | **Phone + architecture** | Hold up the phone (bottom sheet, dark mode), then the architecture slide | "It works on your phone and in dark mode. Under the hood it's serverless AWS: DynamoDB transactions, Streams for notifications, a one-minute sweeper enforcing the 4-hour confirm rule on the server clock, WAF, alarms, a runbook, 330 automated tests plus 60 browser tests. Plug in UMass's 25Live and SSO and it's live." |
 
 **Dry runs (automated, `pnpm --filter @freeroom/e2e pitch`, admin1 + student1, on the local stack):**
 clicks alone take ~17–28 s; the rest is narration.
@@ -62,7 +71,7 @@ clicks alone take ~17–28 s; the rest is narration.
    - 4-hour cutoff: server-clock conditional writes + a 1-minute sweeper;
    - private contact: KMS, one decrypting Lambda, HMAC'd University IDs.
 4. **Architecture.** `docs/devpost/architecture.png`. Callouts: serverless, event-driven,
-   WAF + alarms + runbook, ~$8/month, cdk-nag clean, 283 + 48 tests, Lighthouse accessibility
+   WAF + alarms + runbook, ~$8/month, cdk-nag clean, 330 + 60 tests, Lighthouse accessibility
    100, a self-audit with every High fixed.
 5. **Adoption + roadmap.** UMass IT flips two switches (25Live credentials in Secrets Manager,
    SAML metadata). Next: follow a room, week view, WebSockets.

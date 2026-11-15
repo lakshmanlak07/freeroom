@@ -7,6 +7,15 @@ taps, and never get kicked out by a class you didn't know about.
 FreeRoom's own, on serverless AWS. It works on any phone (bottom tab bar, bottom sheets, 44 px
 targets), has Light / Dark / System themes, and a small fox that keeps you company on desktop.
 
+**New (feature-flagged, on in the demo):**
+
+- **Get me there**: walking directions to the room's entrance (Amazon Location Routes v2), a big
+  ETA, and a verdict on whether it will still be free when you arrive ("Free for 1h 20m after
+  you arrive" / "CS 220 starts 4 min after you arrive"), with one tap to reserve it for your
+  arrival time.
+- **Group invites**: one link (and QR ticket) for your study group: where and when, add to
+  Apple/Google/Outlook calendar, directions, and Join. Aliases only, never contact details.
+
 - **Live demo** (sample data, demo accounts, guided tour, resets itself every 2 hours):
   https://d36vb3bto2ikso.cloudfront.net
 - **Production:** https://d14abz6mtvapjq.cloudfront.net (no demo data; "Try the live demo" links
@@ -158,11 +167,12 @@ Requires Node ≥ 22.19 (CI uses 24), pnpm via `corepack enable`, and Docker or 
 
 ```bash
 pnpm lint && pnpm typecheck
-pnpm test                       # 283 tests: domain rules, API integration on DynamoDB Local,
+pnpm test                       # 330 tests: domain rules, API integration on DynamoDB Local,
                                 # 50-way concurrency, adversarial/IDOR audit, sync/sweeper crash
                                 # recovery, infra assertions
-# + 48 Playwright tests: golden path (desktop, iPhone 14, Pixel 7), axe in light AND dark,
-#   mobile layouts at 360/390/430/844 px, theme, fox, people input, audit regressions
+# + 60 Playwright tests: golden path (desktop, iPhone 14, Pixel 7), axe in light AND dark,
+#   mobile layouts at 360/390/430/844 px, theme, fox, people input, audit regressions,
+#   directions (incl. location blocked + phone sheet), invites (sign-in → auto-join, .ics)
 pnpm audit --audit-level high   # CI fails on high/critical
 pnpm --filter @freeroom/infra exec cdk synth -c stage=prod   # cdk-nag AwsSolutions: fails on unjustified findings
 pnpm --filter @freeroom/api e2e              # 12 end-to-end API flows against a running API
@@ -194,9 +204,10 @@ The full guide (first-time bootstrap, the GitHub pipeline, secrets, SES, real 25
 
 | Area                                                                                             | Status                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core rules BR-1/5/6/8/9 (server-enforced, tested)                                                | ✅ Shipped. 283 automated tests + 48 Playwright + adversarial/IDOR audit ([TRACEABILITY](docs/TRACEABILITY.md), [AUDIT](docs/AUDIT.md))                                                                                                                                                                 |
+| Core rules BR-1/5/6/8/9 (server-enforced, tested)                                                | ✅ Shipped. 330 automated tests + 60 Playwright + adversarial/IDOR audit ([TRACEABILITY](docs/TRACEABILITY.md), [AUDIT](docs/AUDIT.md))                                                                                                                                                                 |
 | Search, map, timeline, reserve, claims, notifications, Demo Controls                             | ✅ Shipped, live on dev and prod                                                                                                                                                                                                                                                                        |
 | Mobile layout, dark mode, fox companion, typeable people count                                   | ✅ Shipped (v1.2). Map on Amazon Location Maps API v2 with a live dark basemap                                                                                                                                                                                                                          |
+| Get me there (walking directions + arrival verdict), group invites (QR ticket, join, calendar)   | ✅ On dev behind `features.directions` / `features.invites`; off in prod until approved (`-c features=directions,invites`)                                                                                                                                                                              |
 | Natural-language search                                                                          | ✅ Shipped. **Parser live; Bedrock pending** an account step: Anthropic's one-time use-case form in the Bedrock console. After approval it switches on with no redeploy (DEPLOY.md §6)                                                                                                                  |
 | Security (WAF, KMS, origin-verify, cdk-nag clean) and observability (dashboard, alarms, runbook) | ✅ Shipped                                                                                                                                                                                                                                                                                              |
 | CD via GitHub Actions + OIDC                                                                     | ⛔ **Blocked by account policy.** The hackathon AWS account's SCP denies `iam:CreateOpenIDConnectProvider`. The workflow is complete as committed (CI runs on GitHub; deploy jobs are opt-in with `-c githubOidc=true`). Deploys run from a maintainer machine with short-lived `aws login` credentials |

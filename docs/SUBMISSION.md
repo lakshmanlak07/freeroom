@@ -60,6 +60,13 @@ bumped by a class you didn't know about.
 - **Light, Dark or System theme**, applied before the first paint, including a dark basemap.
 - **A fox that keeps you company** on desktop: it follows your cursor, naps when you stop, and
   celebrates when a booking goes through (static with reduced motion, off by default on touch).
+- **Get me there:** walking directions to the room's entrance with a big ETA and an honest
+  verdict on whether the room will still be free when you arrive ("CS 220 starts 4 min after
+  you arrive"), then one tap to reserve it for your arrival time. The route draws itself on the
+  map, and the fox trots along it.
+- **Invite your group:** after booking you get a "You're booked" card. One link (or a QR
+  ticket) shows friends where and when, adds it to Apple/Google/Outlook calendars, gets them
+  directions, and lets them Join. Only aliases are ever shown; the token is stored as a hash.
 - **The landing page proves it's live:** "47 of 80 rooms free right now on campus", straight from
   the API.
 
@@ -76,11 +83,12 @@ Fully serverless on AWS, one CDK stack per stage, TypeScript end to end (strict,
 | **Amazon Cognito** | Email/password with University-ID registration and roles via a pre-token Lambda. SAML-ready for campus SSO. |
 | **AWS KMS + Secrets Manager** | Envelope encryption of contact info (encryption context = user); an HMAC pepper so University IDs are never stored. |
 | **Amazon Location Service** (Maps API v2) | The campus basemap (Standard style, Light and Dark). No map resource: an API key limited to `geo-maps:GetTile`/`GetStaticMap` on the AWS-provided basemap, from our origin only. |
+| **Amazon Location Service** (Routes API v2) | Walking directions (CalculateRoutes, Pedestrian) from the API Lambda, with IAM limited to that one action on the AWS-provided routing provider. Origins are rounded to ~10 m and never stored or logged. Pedestrian routing has no step-free option, so we route to the accessible entrance and say so. |
 | **Amazon Bedrock** (Claude Haiku 4.5, cross-region inference profile) | Natural-language search. The model can only fill in the filter object (one forced tool, zod-validated); a deterministic parser takes over on any error. The account is still waiting on Anthropic's one-time Bedrock use-case approval, so today the **smart parser** serves live queries (labelled "Smart search"); Bedrock switches on with no redeploy (labelled "Understood by AI"). [CHECK before submitting] |
 | **Amazon CloudWatch + SNS** | JSON logs with correlation IDs that flow from API to DynamoDB event to notifier, EMF business metrics, a dashboard, and alarms emailed via SNS. |
 
-Quality: 283 automated tests (domain rules, integration on DynamoDB Local, a 50-way concurrency
-test, adversarial/IDOR tests, sync/sweeper crash-recovery tests, infra assertions) and 48
+Quality: 330 automated tests (domain rules, integration on DynamoDB Local, a 50-way concurrency
+test, adversarial/IDOR tests, sync/sweeper crash-recovery tests, a 20-way invite capacity race, iCalendar validation, infra assertions) and 60
 Playwright tests (golden path on desktop, iPhone 14 and Pixel 7 profiles; axe in light and dark;
 mobile layouts at 360/390/430/844 px). Lighthouse accessibility 100; mobile performance 93–96 on
 the landing and search pages. cdk-nag (AwsSolutions) clean. A whole-repo audit
