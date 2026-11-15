@@ -1,11 +1,18 @@
 /** Structured JSON logs; PII and secrets are redacted by key name at any depth (CLAUDE.md). */
+// Substring match (audit L1): phoneNumber, userEmail, idToken… are caught too.
 const REDACT_KEY =
-  /^(universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|idtoken|accesstoken|refreshtoken|x-dev-user)$|enc$/i;
+  /universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|x-dev-user|enc$/i;
+// PII that can hide inside free text (error messages).
+const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
+const PHONE = /\+?\d[\d\s().-]{6,}\d/g;
+const scrub = (s: string) => s.replace(EMAIL, '[REDACTED]').replace(PHONE, '[REDACTED]');
 
 export function redact(value: unknown, depth = 0): unknown {
-  if (value === null || typeof value !== 'object' || depth > 8) return value;
+  if (value === null || typeof value !== 'object') return value;
+  if (depth > 8) return '[TRUNCATED]';
   if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
-  if (value instanceof Error) return { name: value.name, message: value.message };
+  if (value instanceof Error) return { name: value.name, message: scrub(value.message) };
+  if (value instanceof Date) return value.toISOString();
   return Object.fromEntries(
     Object.entries(value).map(([k, v]) => [
       k,

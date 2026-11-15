@@ -25,6 +25,23 @@ describe('logger redaction', () => {
     });
   });
 
+  it('audit L1: variant key names, PII inside error messages, and deep values are redacted', () => {
+    const deep: Record<string, unknown> = {};
+    let cur = deep;
+    for (let i = 0; i < 12; i++) cur = (cur.next = {}) as Record<string, unknown>;
+    cur.leak = 'x';
+    const out = redact({
+      phoneNumber: '+1 413 555 0100',
+      userEmail: 'a@b.edu',
+      err: new Error('lookup failed for jane.doe@umass.edu / 413-555-0100'),
+      deep,
+    }) as Record<string, unknown>;
+    expect(out.phoneNumber).toBe('[REDACTED]');
+    expect(out.userEmail).toBe('[REDACTED]');
+    expect(JSON.stringify(out.err)).not.toMatch(/umass.edu|555/);
+    expect(JSON.stringify(out.deep)).not.toContain('leak');
+  });
+
   it('writes one JSON line with correlation id from child loggers', () => {
     const lines: string[] = [];
     createLogger({ service: 'api' }, (l) => lines.push(l))

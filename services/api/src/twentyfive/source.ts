@@ -1,6 +1,7 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import type { ClassEvent } from '@freeroom/domain';
 import type { Equipment } from '@freeroom/shared';
+import { createLogger } from '../logger';
 import type { SourceBuilding } from './campus';
 import { MockSource, type RawReservation } from './mock';
 import { RealTwentyFiveLiveSource, type TwentyFiveLiveCreds } from './real';
@@ -34,8 +35,19 @@ export async function createScheduleSource(opts: {
     new GetSecretValueCommand({ SecretId: opts.secretArn }),
   );
   const creds = JSON.parse(secret.SecretString ?? '{}') as Partial<TwentyFiveLiveCreds>;
-  if (!creds.baseUrl || !creds.username || !creds.password) {
+  const missing = missingCreds(creds);
+  if (missing.length) {
+    // Audit H4: never fall back silently. Until UMass IT grants 25Live access every stage runs on
+    // the seeded mock campus on purpose; this line (and the "Demo data" badge) makes that visible.
+    createLogger({ service: 'schedule-source' }).warn('schedule.mock_source', {
+      stage: process.env.STAGE,
+      missing,
+    });
     return new MockSource({ loadInjected: opts.loadInjected });
   }
   return new RealTwentyFiveLiveSource(creds as TwentyFiveLiveCreds);
 }
+
+/** Which 25Live credential fields are absent (names only, never values). */
+export const missingCreds = (c: Partial<TwentyFiveLiveCreds>) =>
+  (['baseUrl', 'username', 'password'] as const).filter((k) => !c[k]);

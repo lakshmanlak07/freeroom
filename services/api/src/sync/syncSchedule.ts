@@ -136,6 +136,8 @@ export async function syncSchedule(
   }
 
   const conflicts = new Map<string, ClassEvent>(); // reservationId → colliding class
+  // Classes whose slots are still held by reservations: cached only once BR-9 has freed them.
+  const pending = new Map<string, { day: string; ev: ClassEvent; hash: string }>();
   const roomDays = roomIds.flatMap((roomId) => days.map((day) => [roomId, day] as const));
   await mapLimit(roomDays, 8, async ([roomId, day]) => {
     try {
@@ -158,12 +160,14 @@ export async function syncSchedule(
       for (const { ev, hash } of desired.values()) {
         const prev = cachedById.get(ev.eventId);
         if (prev?.sourceHash === hash) continue;
-        await putClass(db, day, { ...ev, sourceHash: hash }, runId);
         if (prev) counts.updated++;
         else counts.added++;
-        for (const resId of await lockClassSlots(db, roomId, coveringSlots(ev), ev.eventId)) {
-          conflicts.set(resId, ev);
-        }
+        // Audit H1: lock first, cache the class (with its sourceHash) last. If the run dies in
+        // between, the next run sees no matching hash and redoes the (idempotent) locking.
+        const held = await lockClassSlots(db, roomId, coveringSlots(ev), ev.eventId);
+        for (const resId of held) conflicts.set(resId, ev);
+        if (held.length) pending.set(ev.eventId, { day, ev, hash });
+        else await putClass(db, day, { ...ev, sourceHash: hash }, runId);
       }
       await setSyncMeta(db, roomId, day, nowIso);
       counts.roomDays++;
@@ -189,6 +193,17 @@ export async function syncSchedule(
     } catch (e) {
       counts.errors++;
       errors.push(`conflict ${resId}: ${(e as Error).message}`);
+    }
+  }
+
+  for (const { day, ev, hash } of pending.values()) {
+    try {
+      const still = await lockClassSlots(db, ev.roomId, coveringSlots(ev), ev.eventId);
+      if (!still.length) await putClass(db, day, { ...ev, sourceHash: hash }, runId);
+      else errors.push(`class ${ev.eventId}: ${still.length} slot(s) still held; retried next run`);
+    } catch (e) {
+      counts.errors++;
+      errors.push(`class ${ev.eventId}: ${(e as Error).message}`);
     }
   }
 

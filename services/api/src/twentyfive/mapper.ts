@@ -39,9 +39,19 @@ export interface RawReservation {
 // TODO(25live): confirm the top-level wrappers.
 export const unwrapSpaces = (json: unknown): RawSpace[] =>
   ((json as { spaces?: { space?: RawSpace[] } }).spaces?.space ?? []) as RawSpace[];
-export const unwrapReservations = (json: unknown): RawReservation[] =>
-  ((json as { reservations?: { reservation?: RawReservation[] } }).reservations?.reservation ??
-    []) as RawReservation[];
+/**
+ * Audit H3: a payload without the `reservations` wrapper is an error, not "no classes" — treating
+ * it as empty would make the sync delete every cached class (and its locks) for those room-days.
+ * The wrapper present with no `reservation` list is a genuinely empty day.
+ */
+export const unwrapReservations = (json: unknown): RawReservation[] => {
+  const wrapper = (json as { reservations?: { reservation?: RawReservation[] } } | null)
+    ?.reservations;
+  if (!wrapper || typeof wrapper !== 'object') {
+    throw new Error('25Live: unexpected reservations payload (missing "reservations")');
+  }
+  return wrapper.reservation ?? [];
+};
 
 // TODO(25live): confirm feature names used by UMass.
 const FEATURE_MAP: Record<string, Equipment> = {

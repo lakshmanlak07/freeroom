@@ -265,7 +265,7 @@ describe('sweeper (BR-6)', () => {
     const before = await sweep(t.db, new Date('2026-11-20T10:59:59.999Z'), {
       reservationId: res.id,
     });
-    expect(before).toEqual({ released: 0, expired: 0 });
+    expect(before).toEqual({ released: 0, expired: 0, failed: 0, errors: [] });
 
     const cutoff = new Date('2026-11-20T11:00:00.000Z');
     const first = await sweep(t.db, cutoff);
@@ -282,7 +282,7 @@ describe('sweeper (BR-6)', () => {
     ]);
     expect(locks.size).toBe(0);
 
-    expect(await sweep(t.db, cutoff)).toEqual({ released: 0, expired: 0 });
+    expect(await sweep(t.db, cutoff)).toEqual({ released: 0, expired: 0, failed: 0, errors: [] });
   });
 
   it('reset wipes reservations, then re-seeds the demo (admin)', async () => {

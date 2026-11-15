@@ -17,19 +17,29 @@ export async function sweep(db: Db, now: Date, opts: { reservationId?: string } 
     ? await listReservationClaims(db, opts.reservationId)
     : await listDueClaims(db, now);
 
+  // Audit H2: each item is isolated, so one poison record can't block every later release/expiry.
   let released = 0;
+  let expired = 0;
+  const errors: string[] = [];
   for (const r of reservations) {
-    if (
-      shouldAutoRelease({ status: r.status, start: new Date(r.start) }, now) &&
-      (await releaseUnconfirmed(db, r, now))
-    ) {
-      released++;
+    try {
+      if (
+        shouldAutoRelease({ status: r.status, start: new Date(r.start) }, now) &&
+        (await releaseUnconfirmed(db, r, now))
+      ) {
+        released++;
+      }
+    } catch (e) {
+      errors.push(`reservation ${r.id}: ${(e as Error).name}`);
     }
   }
-  let expired = 0;
   for (const c of claims) {
-    if (c.status === 'PENDING' && c.expiresAt <= nowIso && (await expireClaim(db, c, now)))
-      expired++;
+    try {
+      if (c.status === 'PENDING' && c.expiresAt <= nowIso && (await expireClaim(db, c, now)))
+        expired++;
+    } catch (e) {
+      errors.push(`claim ${c.claimId}: ${(e as Error).name}`);
+    }
   }
-  return { released, expired };
+  return { released, expired, failed: errors.length, errors };
 }

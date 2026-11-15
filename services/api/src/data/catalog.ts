@@ -18,6 +18,8 @@ async function batchPut(db: Db, items: Item[]) {
       pending = (r.UnprocessedItems?.[db.table] ?? []) as typeof pending;
       if (pending.length) await new Promise((res) => setTimeout(res, 20 * 2 ** attempt));
     }
+    // Audit M7: never drop catalog rows silently.
+    if (pending.length) throw new Error(`batchPut: ${pending.length} unprocessed item(s)`);
   }
 }
 

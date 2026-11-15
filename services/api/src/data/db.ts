@@ -57,6 +57,8 @@ export async function batchGet(db: Db, keyList: { PK: string; SK: string }[]): P
       pending = r.UnprocessedKeys?.[db.table]?.Keys as Item[] | undefined;
       if (pending?.length) await new Promise((res) => setTimeout(res, 20 * 2 ** attempt));
     }
+    // Audit M7: a partial read would misreport locks/users, so fail loudly instead.
+    if (pending?.length) throw new Error(`batchGet: ${pending.length} unprocessed key(s)`);
   }
   return out;
 }

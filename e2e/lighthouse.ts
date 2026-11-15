@@ -28,28 +28,34 @@ if (process.env.LH_THEME === 'dark' || process.env.LH_THEME === 'light') {
   await ctx.addInitScript((t) => localStorage.setItem('freeroom.theme', t), process.env.LH_THEME);
 }
 const page = ctx.pages()[0] ?? (await ctx.newPage());
-await login(page, OWNER);
-await page.goto('/');
-const room = await page.locator('a[href^="/rooms/"]').first().getAttribute('href');
+await page.goto('/welcome');
 
 const browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${PORT}` });
 const tab = (await browser.pages()).find((p) => p.url().startsWith(BASE));
-if (!tab) throw new Error('signed-in tab not found');
+if (!tab) throw new Error('app tab not found');
 
-const results: { page: string; final: string; accessibility: number; performance: number }[] = [];
-for (const path of ['/', room!, '/map']) {
+// LH_FORM=mobile: Lighthouse's default mobile emulation + simulated slow-4G throttling, all categories.
+const MOBILE = process.env.LH_FORM === 'mobile';
+const results: Record<string, string | number>[] = [];
+let room = '';
+// /welcome is audited signed out (a signed-in visit redirects to /); the rest signed in.
+for (let path of [...(MOBILE ? ['/welcome'] : []), '/', 'ROOM', '/map']) {
+  if (path !== '/welcome' && !room) {
+    await login(page, OWNER);
+    await page.goto('/');
+    room = (await page.locator('a[href^="/rooms/"]').first().getAttribute('href'))!;
+  }
+  if (path === 'ROOM') path = room;
   const flow = await startFlow(tab, {
     flags: {
-      onlyCategories: ['accessibility', 'performance'],
-      formFactor: 'desktop',
-      screenEmulation: {
-        mobile: false,
-        width: 1350,
-        height: 940,
-        deviceScaleFactor: 1,
-        disabled: false,
-      },
-      throttlingMethod: 'provided',
+      onlyCategories: MOBILE
+        ? ['performance', 'accessibility', 'best-practices', 'seo']
+        : ['accessibility', 'performance'],
+      formFactor: MOBILE ? 'mobile' : 'desktop',
+      screenEmulation: MOBILE
+        ? { mobile: true, width: 412, height: 823, deviceScaleFactor: 1.75, disabled: false }
+        : { mobile: false, width: 1350, height: 940, deviceScaleFactor: 1, disabled: false },
+      throttlingMethod: MOBILE ? 'simulate' : 'provided',
       disableStorageReset: true, // keep the signed-in session
     },
   });
@@ -61,6 +67,13 @@ for (const path of ['/', room!, '/map']) {
     final: new URL(lhr.finalDisplayedUrl).pathname, // proves we were not bounced to /welcome
     accessibility: Math.round((c.accessibility?.score ?? 0) * 100),
     performance: Math.round((c.performance?.score ?? 0) * 100),
+    ...(MOBILE && {
+      bestPractices: Math.round((c['best-practices']?.score ?? 0) * 100),
+      seo: Math.round((c.seo?.score ?? 0) * 100),
+      lcp: lhr.audits['largest-contentful-paint']?.displayValue ?? '',
+      cls: lhr.audits['cumulative-layout-shift']?.displayValue ?? '',
+      tbt: lhr.audits['total-blocking-time']?.displayValue ?? '',
+    }),
   });
   for (const ref of c.accessibility?.auditRefs ?? []) {
     const a = lhr.audits[ref.id];
@@ -70,9 +83,14 @@ for (const path of ['/', room!, '/map']) {
 }
 await browser.disconnect();
 await ctx.close();
-writeFileSync('lighthouse-summary.json', JSON.stringify(results, null, 2));
+writeFileSync(
+  MOBILE ? 'lighthouse-mobile.json' : 'lighthouse-summary.json',
+  JSON.stringify(results, null, 2),
+);
 console.table(results);
-const bad = results.filter((r) => r.accessibility < TARGET || r.final === '/welcome');
+const bad = results.filter(
+  (r) => Number(r.accessibility) < TARGET || (r.page !== '/welcome' && r.final === '/welcome'),
+);
 if (bad.length) {
   console.error(`Below ${TARGET} or not signed in: ${bad.map((b) => b.page).join(', ')}`);
   process.exit(1);

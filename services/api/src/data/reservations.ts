@@ -398,10 +398,11 @@ export async function cancelReservation(
               TableName: db.table,
               Key: keys.reservation(rec.id),
               UpdateExpression: 'SET #s = :x, version = version + :one REMOVE GSI4PK, GSI4SK',
-              ConditionExpression: '#s IN (:p, :c)',
+              ConditionExpression: '#s IN (:p, :c) AND ownerId = :owner', // audit M3: pin the owner we read
               ExpressionAttributeNames: { '#s': 'status' },
               ExpressionAttributeValues: {
                 ':x': 'CANCELLED',
+                ':owner': rec.ownerId,
                 ':p': 'PENDING_CONFIRMATION',
                 ':c': 'CONFIRMED',
                 ':one': 1,
@@ -450,11 +451,12 @@ export async function releaseForClassConflict(
         Key: keys.reservation(rec.id),
         UpdateExpression:
           'SET #s = :r, releaseReason = :why, version = version + :one REMOVE GSI4PK, GSI4SK',
-        ConditionExpression: '#s IN (:p, :c)',
+        ConditionExpression: '#s IN (:p, :c) AND ownerId = :owner', // audit M3: pin the owner we read
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: {
           ':r': 'RELEASED',
           ':why': 'CLASS_CONFLICT',
+          ':owner': rec.ownerId,
           ':p': 'PENDING_CONFIRMATION',
           ':c': 'CONFIRMED',
           ':one': 1,
@@ -530,11 +532,12 @@ export async function releaseUnconfirmed(db: Db, rec: ReservationRecord, now: Da
               Key: keys.reservation(rec.id),
               UpdateExpression:
                 'SET #s = :r, releaseReason = :why, version = version + :one REMOVE GSI4PK, GSI4SK',
-              ConditionExpression: '#s = :p AND cutoffAt <= :now',
+              ConditionExpression: '#s = :p AND cutoffAt <= :now AND ownerId = :owner',
               ExpressionAttributeNames: { '#s': 'status' },
               ExpressionAttributeValues: {
                 ':r': 'RELEASED',
                 ':why': 'UNCONFIRMED',
+                ':owner': rec.ownerId,
                 ':p': 'PENDING_CONFIRMATION',
                 ':now': nowIso,
                 ':one': 1,
