@@ -24,6 +24,9 @@ import {
   DemoStatusSchema,
   MyClaimsResponseSchema,
   ReservationEventsResponseSchema,
+  InviteCreateResponseSchema,
+  InvitePreviewSchema,
+  RouteResponseSchema,
   type ApproveMode,
 } from '@freeroom/shared';
 
@@ -170,6 +173,48 @@ export function createApi(baseUrl: string, authHeaders: () => Promise<Record<str
       reset: () => request('POST', '/demo/reset', AnyObject),
       status: () => request('GET', '/demo/status', DemoStatusSchema),
     },
+
+    // ---- Directions (features.directions)
+    /** from = "lat,lng" (rounded server-side, never stored) or "building:<id>". */
+    route: (roomId: string, from: string, accessible: boolean) =>
+      request(
+        'GET',
+        `/rooms/${encodeURIComponent(roomId)}/route${qs({ from, accessible: accessible ? 'true' : undefined })}`,
+        RouteResponseSchema,
+      ),
+
+    // ---- Group invites (features.invites)
+    createInvite: (reservationId: string) =>
+      request(
+        'POST',
+        `/reservations/${encodeURIComponent(reservationId)}/invites`,
+        InviteCreateResponseSchema,
+      ),
+    revokeInvite: (reservationId: string) =>
+      request('DELETE', `/reservations/${encodeURIComponent(reservationId)}/invites`, AnyObject),
+    invite: (token: string) =>
+      request('GET', `/invites/${encodeURIComponent(token)}`, InvitePreviewSchema),
+    joinInvite: (token: string) =>
+      request('POST', `/invites/${encodeURIComponent(token)}/join`, AnyObject),
+    leaveReservation: (reservationId: string) =>
+      request('DELETE', `/reservations/${encodeURIComponent(reservationId)}/attendance`, AnyObject),
+    /** Owner/attendee calendar file: fetched with auth headers, then saved as a download. */
+    downloadCalendar: async (reservationId: string, fileName: string) => {
+      const res = await fetch(
+        `${baseUrl.replace(/\/$/, '')}/reservations/${encodeURIComponent(reservationId)}/calendar.ics`,
+        { headers: await authHeaders() },
+      );
+      if (!res.ok) throw new ApiError(res.status, 'INTERNAL', 'Couldn’t make the calendar file.');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    /** Public calendar file for an invite (works signed out). */
+    inviteCalendarUrl: (token: string) =>
+      `${baseUrl.replace(/\/$/, '')}/invites/${encodeURIComponent(token)}/calendar.ics`,
   };
 }
 

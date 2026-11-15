@@ -146,7 +146,7 @@ export function LoginPage() {
                   onChange={(e) => setDevId(e.target.value)}
                   placeholder="newstudent"
                   required
-                  pattern="[A-Za-z0-9_-]{3,40}"
+                  pattern="[A-Za-z0-9_\-]{3,40}"
                 />
               </label>
               <Button type="submit" className="w-full" disabled={busy}>

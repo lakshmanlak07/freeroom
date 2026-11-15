@@ -160,7 +160,8 @@ export class Web extends Construct {
   routeApi(httpApi: HttpApi, originVerify: string): string {
     const strip = new CfFunction(this, 'ApiPrefixStrip', {
       code: FunctionCode.fromInline(
-        String.raw`function handler(e){var r=e.request;r.uri=r.uri.replace(/^\/api/,'')||'/';return r;}`,
+        // Also tells the API its public origin (invite links); overwrites anything a client sent.
+        String.raw`function handler(e){var r=e.request;r.uri=r.uri.replace(/^\/api/,'')||'/';r.headers['x-freeroom-origin']={value:'https://'+r.headers.host.value};return r;}`,
       ),
     });
     this.distribution.addBehavior(
@@ -188,6 +189,8 @@ export class Web extends Construct {
     demoMode: boolean;
     /** Prod landing "Try the live demo" target (the dev site). */
     demoUrl?: string;
+    /** Feature flags read by the SPA. */
+    features: { directions: boolean; invites: boolean };
   }) {
     const site = existsSync(join(WEB_DIST, 'index.html'))
       ? Source.asset(WEB_DIST)

@@ -21,6 +21,9 @@ import {
 const KEY = 'freeroom.fox';
 const PREF_EVENT = 'freeroom:fox';
 const CELEBRATE_EVENT = 'freeroom:celebrate';
+/** Directions: detail = route vertices in viewport px; the fox trots it once, then sits at the end. */
+const PATH_EVENT = 'freeroom:fox-path';
+const PARK_MS = 8_000;
 const SIZE = 56;
 const TAP_STAY_MS = 3_000;
 
@@ -84,6 +87,24 @@ export function FoxToggle({ onRail = false }: { onRail?: boolean }) {
   );
 }
 
+/** Point at fraction k (0..1) of a polyline, by length. */
+function along(pts: { x: number; y: number }[], k: number) {
+  if (pts.length === 1 || k <= 0) return pts[0]!;
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i]!.x, p.y - pts[i]!.y));
+  let left = seg.reduce((a, b) => a + b, 0) * Math.min(1, k);
+  for (let i = 0; i < seg.length; i++) {
+    if (left <= seg[i]!) {
+      const f = seg[i]! ? left / seg[i]! : 0;
+      return {
+        x: pts[i]!.x + (pts[i + 1]!.x - pts[i]!.x) * f,
+        y: pts[i]!.y + (pts[i + 1]!.y - pts[i]!.y) * f,
+      };
+    }
+    left -= seg[i]!;
+  }
+  return pts[pts.length - 1]!;
+}
+
 export function FoxCompanion() {
   const enabled = useFoxEnabled();
   const root = useRef<HTMLDivElement>(null);
@@ -108,6 +129,8 @@ export function FoxCompanion() {
     let wander: { x: number; y: number; until: number } | null = null;
     let lastMove = performance.now();
     let celebrateUntil = 0;
+    let trot: { pts: { x: number; y: number }[]; t0: number; dur: number } | null = null;
+    let park: { x: number; y: number; since: number; until: number } | null = null;
 
     const paint = () => {
       el.style.transform = `translate3d(${pos.x.toFixed(1)}px, ${pos.y.toFixed(1)}px, 0)`;
@@ -146,6 +169,15 @@ export function FoxCompanion() {
       };
       lastMove = performance.now();
     };
+    const onPath = (e: Event) => {
+      const pts = (e as CustomEvent<{ x: number; y: number }[]>).detail;
+      if (touch || !pts?.length) return;
+      // Feet on the line: the sprite's box is anchored top-left.
+      const feet = pts.map((p) => ({ x: p.x - SIZE / 2, y: p.y - SIZE + 6 }));
+      trot = { pts: feet, t0: performance.now(), dur: Math.min(3_200, 1_000 + feet.length * 140) };
+      park = null;
+    };
+    window.addEventListener(PATH_EVENT, onPath);
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', onTap, { passive: true });
 
@@ -157,7 +189,16 @@ export function FoxCompanion() {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
       let goal: { x: number; y: number };
-      if (touch || !cursor) {
+      if (trot) {
+        const k = Math.min(1, (t - trot.t0) / trot.dur);
+        goal = along(trot.pts, k);
+        if (k >= 1) {
+          park = { x: goal.x + 34, y: goal.y, since: t, until: t + PARK_MS }; // beside the pin
+          trot = null;
+        }
+      } else if (park && t < park.until && lastMove <= park.since) {
+        goal = park; // sits by the destination pin until you move the mouse
+      } else if (touch || !cursor) {
         goal = tap && t < tap.until ? tap : home();
       } else if (state === 'wander') {
         if (!wander || t > wander.until) {
@@ -172,8 +213,16 @@ export function FoxCompanion() {
         wander = null;
         goal = followTarget(pos, cursor);
       }
-      [pos.x, vel.x] = springStep(pos.x, vel.x, goal.x, dt);
-      [pos.y, vel.y] = springStep(pos.y, vel.y, goal.y, dt);
+      if (trot) {
+        // On the line exactly (no spring lag), velocity kept for facing + run pose.
+        vel.x = (goal.x - pos.x) / Math.max(dt, 1 / 120);
+        vel.y = (goal.y - pos.y) / Math.max(dt, 1 / 120);
+        pos.x = goal.x;
+        pos.y = goal.y;
+      } else {
+        [pos.x, vel.x] = springStep(pos.x, vel.x, goal.x, dt);
+        [pos.y, vel.y] = springStep(pos.y, vel.y, goal.y, dt);
+      }
       const s = nextState({
         now: t,
         speed: Math.hypot(vel.x, vel.y),
@@ -198,6 +247,7 @@ export function FoxCompanion() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
+      window.removeEventListener(PATH_EVENT, onPath);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onTap);
       document.removeEventListener('visibilitychange', onVisibility);

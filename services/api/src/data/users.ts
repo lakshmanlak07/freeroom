@@ -229,3 +229,30 @@ export async function takeNlSearchToken(db: Db, userId: string, now: Date, perMi
   );
   return (r.Attributes?.n as number) <= perMinute;
 }
+
+/**
+ * Generic per-user rate limit (one atomic ADD on a TTL'd counter, so it holds across Lambda
+ * instances). `window` is 'minute' or 'hour'. Returns false once the window's budget is spent.
+ */
+export async function takeRateToken(
+  db: Db,
+  userId: string,
+  bucket: string,
+  now: Date,
+  limit: number,
+  window: 'minute' | 'hour',
+) {
+  const key = now.toISOString().slice(0, window === 'minute' ? 16 : 13);
+  const ttlSec = window === 'minute' ? 120 : 7_200;
+  const r = await db.doc.send(
+    new UpdateCommand({
+      TableName: db.table,
+      Key: keys.rate(userId, bucket, key),
+      UpdateExpression: 'ADD #n :one SET #ttl = :ttl',
+      ExpressionAttributeNames: { '#n': 'n', '#ttl': 'ttl' },
+      ExpressionAttributeValues: { ':one': 1, ':ttl': Math.floor(now.getTime() / 1000) + ttlSec },
+      ReturnValues: 'UPDATED_NEW',
+    }),
+  );
+  return (r.Attributes?.n as number) <= limit;
+}

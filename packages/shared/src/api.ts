@@ -213,8 +213,14 @@ export type ReservationResponse = z.infer<typeof ReservationResponseSchema>;
 export const MyReservationsQuerySchema = z.object({
   scope: z.enum(['upcoming', 'past']).default('upcoming'),
 });
+/** My Reservations: owner's own bookings plus (invites) the ones I joined, with attendee aliases. */
 export const MyReservationsResponseSchema = z.object({
-  reservations: z.array(ReservationDetailSchema),
+  reservations: z.array(
+    ReservationDetailSchema.extend({
+      role: z.enum(['owner', 'attendee']).optional(),
+      attendees: z.array(z.object({ alias: z.string() })).optional(),
+    }),
+  ),
 });
 export type MyReservationsResponse = z.infer<typeof MyReservationsResponseSchema>;
 
@@ -328,3 +334,98 @@ export const SyncRunSchema = z.object({
 export const SyncRunsResponseSchema = z.object({ runs: z.array(SyncRunSchema) });
 
 export const HealthResponseSchema = z.object({ ok: z.literal(true) });
+
+// ---------- Directions ("Get me there") — feature flag `features.directions` ----------
+export const LatLngSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+export type LatLng = z.infer<typeof LatLngSchema>;
+
+/** `from` = "lat,lng" (rounded to ~10 m server-side, never stored) or "building:<buildingId>". */
+export const RouteQuerySchema = z.object({
+  from: z
+    .string()
+    .max(64)
+    .regex(/^(-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?|building:[A-Za-z0-9-]{1,32})$/),
+  accessible: z.enum(['true', 'false']).optional(),
+});
+
+export const ArrivalSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('FREE_FOR'), minutes: z.number().int(), until: IsoDateTime }),
+  z.object({
+    kind: z.literal('CLASS_STARTS_SOON'),
+    className: z.string(),
+    inMinutes: z.number().int(),
+    startsAt: IsoDateTime,
+  }),
+  z.object({ kind: z.literal('BUSY_UNTIL'), until: IsoDateTime, closed: z.boolean().optional() }),
+  z.object({ kind: z.literal('YOURS'), until: IsoDateTime }),
+]);
+export type Arrival = z.infer<typeof ArrivalSchema>;
+
+export const RouteStepSchema = z.object({
+  instruction: z.string(),
+  distanceMeters: z.number(),
+  durationSeconds: z.number(),
+  /** Depart | Turn | Keep | Continue | Arrive | … (Amazon Location step type). */
+  type: z.string(),
+  direction: z.enum(['left', 'right', 'straight']).optional(),
+});
+export type RouteStep = z.infer<typeof RouteStepSchema>;
+
+export const RouteResponseSchema = z.object({
+  distanceMeters: z.number(),
+  durationSeconds: z.number(),
+  arriveAt: IsoDateTime,
+  geometry: z.object({
+    type: z.literal('LineString'),
+    coordinates: z.array(z.tuple([z.number(), z.number()])),
+  }),
+  steps: z.array(RouteStepSchema),
+  /** Start of the line: the rounded position, or the chosen building's main entrance. */
+  origin: LatLngSchema,
+  destinationEntrance: LatLngSchema.extend({
+    kind: z.enum(['main', 'accessible']),
+    label: z.string(),
+  }),
+  /** False: the provider can't do step-free pedestrian routing; we still target the accessible door. */
+  accessibleRouting: z.boolean(),
+  arrival: ArrivalSchema,
+});
+export type RouteResponse = z.infer<typeof RouteResponseSchema>;
+
+// ---------- Group invites — feature flag `features.invites` ----------
+export const AttendeeSchema = z.object({ alias: z.string() });
+export type Attendee = z.infer<typeof AttendeeSchema>;
+
+export const InviteCreateResponseSchema = z.object({
+  token: z.string(),
+  url: z.string(),
+  expiresAt: IsoDateTime,
+});
+export type InviteCreateResponse = z.infer<typeof InviteCreateResponseSchema>;
+
+/** GET /invites/:token — public and safe: aliases, room, time; never ids or contact (BR-5). */
+export const InvitePreviewSchema = z.object({
+  roomId: Id,
+  roomName: z.string(),
+  buildingId: Id,
+  buildingName: z.string(),
+  start: IsoDateTime,
+  end: IsoDateTime,
+  hostAlias: z.string(),
+  attendees: z.array(AttendeeSchema),
+  attendeeCount: z.number().int(),
+  capacity: z.number().int(),
+  status: ReservationStatusSchema,
+  releaseReason: ReleaseReasonSchema.nullable(),
+  /** BR-9: what the host was offered when a class took the room (rooms + times only). */
+  alternatives: z.array(AlternativeRoomSchema).optional(),
+  entrance: LatLngSchema,
+  /** Present when the caller is signed in. */
+  viewer: z.object({ isHost: z.boolean(), joined: z.boolean() }).optional(),
+});
+export type InvitePreview = z.infer<typeof InvitePreviewSchema>;
+
+export type MyReservation = MyReservationsResponse['reservations'][number];

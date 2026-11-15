@@ -30,6 +30,8 @@ export interface FreeRoomStackProps extends StackProps {
   nlModelId?: string;
   /** Public demo site linked from the (non-demo) prod landing page. */
   demoUrl?: string;
+  /** Feature flags (walking directions, group invites): on in dev, off in prod until approved. */
+  features?: { directions?: boolean; invites?: boolean };
 }
 
 /** The ONE FreeRoom stack per stage (CLAUDE.md), composed of constructs. */
@@ -62,6 +64,7 @@ export class FreeRoomStack extends Stack {
       data,
       auth,
       nlModelId: props.nlModelId,
+      features: props.features ?? {},
     });
     // The SPA calls the API through CloudFront (/api/*), so WAF + HTTPS + headers cover it.
     // CloudFormation resolves the secret at deploy time (dynamic reference); it never sits in git.
@@ -89,6 +92,10 @@ export class FreeRoomStack extends Stack {
       clientId: auth.client.userPoolClientId,
       demoMode: props.demoMode,
       ...(!props.demoMode && props.demoUrl && { demoUrl: props.demoUrl }),
+      features: {
+        directions: !!props.features?.directions,
+        invites: !!props.features?.invites,
+      },
     });
 
     const out = (name: string, value: string) => new CfnOutput(this, name, { value });

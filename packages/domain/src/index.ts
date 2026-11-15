@@ -7,3 +7,4 @@ export * from './permissions';
 export * from './validation';
 export * from './alternatives';
 export * from './privacy';
+export * from './arrival';

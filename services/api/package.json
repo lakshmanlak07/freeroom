@@ -13,6 +13,7 @@
     "@aws-sdk/client-bedrock-runtime": "3.1169.0",
     "@aws-sdk/client-dynamodb": "^3.1169.0",
     "@aws-sdk/client-dynamodb-streams": "^3.1169.0",
+    "@aws-sdk/client-geo-routes": "^3.1169.0",
     "@aws-sdk/client-kms": "^3.1169.0",
     "@aws-sdk/client-secrets-manager": "^3.1169.0",
     "@aws-sdk/client-sesv2": "^3.1169.0",
@@ -26,6 +27,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "ical.js": "^2.2.1",
     "tsx": "^4.23.15"
   }
 }

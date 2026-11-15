@@ -21,6 +21,13 @@ const stack = new FreeRoomStack(app, `FreeRoom-${stage}`, {
   githubOidc: ctx('githubOidc') === 'true',
   // Natural-language search via Bedrock (cdk.json default on); the parser works without it.
   demoUrl: ctx('demoUrl'),
+  // Feature flags: dev = both on; prod = off until approved (-c features=directions,invites).
+  features: Object.fromEntries(
+    (ctx('features') ?? (stage === 'dev' ? 'directions,invites' : ''))
+      .split(',')
+      .filter(Boolean)
+      .map((f) => [f.trim(), true]),
+  ) as { directions?: boolean; invites?: boolean },
   nlModelId: ctx('nlBedrock') === 'false' ? undefined : (ctx('nlModelId') ?? undefined),
   // Prod: its own bootstrap (cdk bootstrap --qualifier frprod --toolkit-stack-name CDKToolkit-frprod).
   synthesizer: new DefaultStackSynthesizer({ qualifier: bootstrapQualifier(stage) }),

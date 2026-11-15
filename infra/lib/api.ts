@@ -43,7 +43,14 @@ export class Api extends Construct {
   constructor(
     scope: Construct,
     id: string,
-    props: { stage: Stage; demo: boolean; data: Data; auth: Auth; nlModelId?: string },
+    props: {
+      stage: Stage;
+      demo: boolean;
+      data: Data;
+      auth: Auth;
+      nlModelId?: string;
+      features?: { directions?: boolean; invites?: boolean };
+    },
   ) {
     super(scope, id);
     const { data, auth, stage } = props;
@@ -57,6 +64,8 @@ export class Api extends Construct {
       UID_PEPPER_SECRET_ARN: data.pepper.secretArn,
       CONTACT_KMS_KEY_ID: data.piiKey.keyArn,
       ORIGIN_VERIFY_SECRET_ARN: data.originVerify.secretArn,
+      FEATURE_DIRECTIONS: String(!!props.features?.directions),
+      FEATURE_INVITES: String(!!props.features?.invites),
     };
 
     // ---- Main API: everything except /me and contact reveal. Encrypts contact, never decrypts.
@@ -71,8 +80,18 @@ export class Api extends Construct {
       this.apiFn,
       data.table,
       [...READ, ...WRITE, ...(props.demo ? ['Scan'] : [])],
-      API_KEYS,
+      // INVITE#<sha256> items exist only with group invites on.
+      [...API_KEYS, ...(props.features?.invites ? ['INVITE#*'] : [])],
     );
+    // Walking directions: one action on the AWS-provided routing provider, nothing else.
+    if (props.features?.directions) {
+      this.apiFn.addToRolePolicy(
+        new PolicyStatement({
+          actions: ['geo-routes:CalculateRoutes'],
+          resources: [`arn:aws:geo-routes:${Stack.of(this).region}::provider/default`],
+        }),
+      );
+    }
     data.piiKey.grant(this.apiFn, 'kms:GenerateDataKey');
     data.pepper.grantRead(this.apiFn);
     data.originVerify.grantRead(this.apiFn);
@@ -138,6 +157,8 @@ export class Api extends Construct {
       '/rooms',
       '/rooms/{roomId}',
       '/rooms/{roomId}/schedule',
+      // Group invites: the public preview + calendar file work signed out (safe fields only).
+      ...(props.features?.invites ? ['/invites/{token}', '/invites/{token}/calendar.ics'] : []),
     ]) {
       this.httpApi.addRoutes({ path, methods: [GET], integration: api });
     }

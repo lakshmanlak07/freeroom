@@ -13,7 +13,11 @@ export type MetricName =
   | 'SyncSuccess'
   | 'ScheduleStalenessMinutes'
   | 'NotificationFailures'
-  | 'NLSearchSource';
+  | 'NLSearchSource'
+  | 'RoutesServed'
+  | 'RouteFailures'
+  | 'InvitesCreated'
+  | 'InviteJoins';
 
 let sink: ((line: string) => void) | null = process.env.AWS_LAMBDA_FUNCTION_NAME
   ? (l) => process.stdout.write(l + '\n')

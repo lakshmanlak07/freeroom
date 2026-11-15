@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock,
   DoorClosed,
+  Footprints,
   List,
   Rows3,
   Star,
@@ -38,6 +39,7 @@ import {
   useNow,
 } from '@/lib/time';
 import { cn } from '@/lib/utils';
+import { useFeature } from '@/config';
 
 const SLOT = 15 * 60_000;
 const VIEW_KEY = 'freeroom.timelineView';
@@ -73,6 +75,7 @@ function liveStatus(
 
 export function RoomPage() {
   const { roomId = '' } = useParams();
+  const directions = useFeature('directions');
   const { api, me } = useAuth();
   const qc = useQueryClient();
   const [sp, setSp] = useSearchParams();
@@ -234,7 +237,7 @@ export function RoomPage() {
             <ChevronRight className="size-4" />
           </Button>
           <span className="ml-1 text-sm font-medium">{fmtDay(day)}</span>
-          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
+          <div className="flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
             <div
               className="flex flex-1 rounded-xl border border-line bg-surface p-0.5 sm:flex-none"
               role="group"
@@ -260,6 +263,14 @@ export function RoomPage() {
                 </button>
               ))}
             </div>
+            {directions && (
+              <Link
+                to={`/map?to=${encodeURIComponent(roomId)}`}
+                className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-sm font-semibold whitespace-nowrap text-brown-ink hover:bg-cream md:h-10"
+              >
+                <Footprints className="size-4" aria-hidden /> Get me there
+              </Link>
+            )}
             <Button onClick={reserveNext} disabled={!room.data} className="whitespace-nowrap">
               <CalendarPlus className="size-4" aria-hidden /> Reserve
               <span className="hidden sm:inline"> a time</span>

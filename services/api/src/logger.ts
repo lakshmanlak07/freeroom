@@ -1,7 +1,9 @@
 /** Structured JSON logs; PII and secrets are redacted by key name at any depth (CLAUDE.md). */
 // Substring match (audit L1): phoneNumber, userEmail, idToken… are caught too.
 const REDACT_KEY =
-  /universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|x-dev-user|enc$/i;
+  /universityid|uidhash|email|phone|contact|authorization|cookie|password|secret|token|x-dev-user|enc$|^(lat|lng|lon|latitude|longitude|coords?|origin|from|position|location)$/i;
+// "42.3912,-72.5262"-style coordinate pairs in free text (directions origins are never logged).
+const COORDS = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/g;
 // PII that can hide inside free text (error messages).
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 // Any phone-like digit run (4135550100, +44 20 7946 0958, (413) 555-0100). Fail closed: only
@@ -11,6 +13,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const scrub = (s: string) =>
   s
     .replace(EMAIL, '[REDACTED]')
+    .replace(COORDS, '[REDACTED]')
     .replace(PHONE, (m) => (ISO_DATE.test(m.trim()) ? m : '[REDACTED]'));
 
 export function redact(value: unknown, depth = 0): unknown {

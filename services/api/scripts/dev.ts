@@ -1,3 +1,4 @@
+import { straightLineRouter } from '../src/directions/router';
 /**
  * `pnpm dev:api` = DynamoDB Local + table + seed users + mock 25Live sync + API on :3001,
  * plus the sweeper (every 60s) and the stream → onChange notifier running in-process.
@@ -66,6 +67,9 @@ const app = createApp({
   devAuth: process.env.NODE_ENV === 'development',
   mock25live: true,
   demo: true,
+  // Both new features on locally; directions use an offline straight-line walker (no AWS).
+  features: { directions: true, invites: true },
+  router: straightLineRouter(),
 });
 serve({ fetch: app.fetch, port }, () =>
   log.info('api.ready', {

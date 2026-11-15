@@ -12,6 +12,8 @@ const synth = (stage: 'dev' | 'prod') => {
     githubRepo: 'lakshmanlak07/freeroom',
     githubOidc: true,
     nlModelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    // Same defaults as bin/app.ts: both features on in dev, off in prod.
+    features: stage === 'dev' ? { directions: true, invites: true } : {},
     env: { account: '111111111111', region: 'us-east-1' },
   });
   return Template.fromStack(stack);
@@ -425,5 +427,49 @@ describe('F3 judge-proof demo', () => {
       );
     expect(resetFns(prod)).toHaveLength(0);
     expect(JSON.stringify(prod.toJSON())).not.toContain('rate(2 hours)');
+  });
+});
+
+describe('Feature flags (directions, invites)', () => {
+  const geo = (t: Template) =>
+    policies(t).flatMap((p) =>
+      p.Properties.PolicyDocument.Statement.filter((st) =>
+        actions(st).some((a) => a.startsWith('geo-routes:')),
+      ),
+    ) as (Statement & { Resource: unknown })[];
+  const routeKeys = (t: Template) =>
+    (
+      Object.values(t.findResources('AWS::ApiGatewayV2::Route')) as {
+        Properties: { RouteKey: string; AuthorizationType?: string };
+      }[]
+    ).map((r) => [r.Properties.RouteKey, r.Properties.AuthorizationType ?? 'NONE']);
+
+  it('dev: exactly geo-routes:CalculateRoutes on the AWS-provided routing provider', () => {
+    const st = geo(dev);
+    expect(st).toHaveLength(1);
+    expect(actions(st[0]!)).toEqual(['geo-routes:CalculateRoutes']);
+    expect(JSON.stringify(st[0]!.Resource)).toContain('::provider/default');
+    expect(JSON.stringify(st[0]!.Resource)).toContain('arn:aws:geo-routes:');
+  });
+
+  it('dev: invite items are a scoped leading key; the public invite preview needs no JWT', () => {
+    expect(JSON.stringify(policies(dev))).toContain('INVITE#*');
+    const keysDev = routeKeys(dev);
+    expect(keysDev).toContainEqual(['GET /invites/{token}', 'NONE']);
+    expect(keysDev).toContainEqual(['GET /invites/{token}/calendar.ics', 'NONE']);
+  });
+
+  it('prod: flags off → no routing permission, no INVITE# access, no public invite routes', () => {
+    expect(geo(prod)).toHaveLength(0);
+    expect(JSON.stringify(policies(prod))).not.toContain('INVITE#');
+    expect(routeKeys(prod).some(([k]) => k!.includes('/invites/'))).toBe(false);
+  });
+
+  it('the API environment carries the flags (config.json is an S3 asset; checked live)', () => {
+    dev.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({ FEATURE_DIRECTIONS: 'true', FEATURE_INVITES: 'true' }),
+      },
+    });
   });
 });

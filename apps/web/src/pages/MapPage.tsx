@@ -1,6 +1,6 @@
 /** F3: campus map. MapLibre GL + Amazon Location Maps v2 (API key) — or free OSM in mock/local mode. */
 import { distanceMeters } from '@freeroom/domain';
-import type { Building } from '@freeroom/shared';
+import type { Building, RouteResponse } from '@freeroom/shared';
 import { useQuery } from '@tanstack/react-query';
 import { List, LocateFixed, MapPin, RotateCcw, TriangleAlert } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
@@ -9,11 +9,15 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // emits (403 on CloudFront → blank map). Ship it as a hashed asset and point maplibre at it.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, Skeleton } from '@/components/EmptyState';
+import { BottomSheet } from '@/components/BottomSheet';
+import { DirectionsPanel } from '@/components/directions/DirectionsPanel';
+import { drawRoute, screenPath } from '@/components/directions/routeLayer';
 import { RoomCard } from '@/components/RoomCard';
 import { Button } from '@/components/ui/button';
-import { useConfig } from '@/config';
+import { useConfig, useFeature } from '@/config';
 import { mapStyleFor, redactKey, type ColorScheme } from '@/lib/mapStyle';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
@@ -44,6 +48,10 @@ export default function MapPage() {
   const [showList, setShowList] = useState(false);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  // "Get me there" (features.directions): /map?to=<roomId> turns the panel into directions.
+  const [sp, setSp] = useSearchParams();
+  const to = useFeature('directions') ? sp.get('to') : null;
+  const [route, setRoute] = useState<RouteResponse | null>(null);
 
   const buildings = useQuery({
     queryKey: ['buildings'],
@@ -129,7 +137,8 @@ export default function MapPage() {
   useEffect(() => {
     if (!map.current || !ready) return;
     markers.current.forEach((m) => m.remove());
-    markers.current = (buildings.data?.buildings ?? []).map((b) => {
+    // Directions mode: only the route, the dot and the door pin (less clutter).
+    markers.current = (to ? [] : (buildings.data?.buildings ?? [])).map((b) => {
       const el = document.createElement('button');
       const t = tier(b.freePct);
       el.type = 'button';
@@ -144,7 +153,27 @@ export default function MapPage() {
       el.onclick = () => select(b);
       return new maplibregl.Marker({ element: el }).setLngLat([b.lng, b.lat]).addTo(map.current!);
     });
-  }, [buildings.data, selected, ready, styleGen]);
+  }, [buildings.data, selected, ready, styleGen, to]);
+
+  // Draw the walk (re-drawn after a theme swap replaces the style). The fox trots it once.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !route) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const phone = window.innerWidth < 1024;
+    return drawRoute(m, route, {
+      reducedMotion: reduced,
+      padding: phone
+        ? { top: 72, bottom: 290, left: 40, right: 40 } // the peeking bottom sheet
+        : { top: 80, bottom: 80, left: 80, right: 80 },
+      onDrawn: () => {
+        if (reduced || phone) return;
+        window.dispatchEvent(
+          new CustomEvent('freeroom:fox-path', { detail: screenPath(m, route) }),
+        );
+      },
+    });
+  }, [route, ready, styleGen]);
 
   const select = (b: Building) => {
     setSelected(b.buildingId);
@@ -180,10 +209,16 @@ export default function MapPage() {
 
   return (
     <div className="grid lg:h-[calc(100dvh-65px)] lg:grid-cols-[minmax(0,1fr)_400px]">
-      <section className="relative h-[55dvh] lg:h-full" aria-label="Campus map">
+      <section
+        className={cn(
+          'relative lg:h-full',
+          to ? 'h-[calc(100dvh-65px-4rem-env(safe-area-inset-bottom))]' : 'h-[55dvh]',
+        )}
+        aria-label="Campus map"
+      >
         {/* h-full, not absolute: maplibre's CSS forces .maplibregl-map { position: relative }. */}
         <div ref={mapEl} className="h-full w-full" />
-        <div className="absolute top-3 left-3 flex flex-wrap gap-2">
+        <div className={cn('absolute top-3 left-3 flex flex-wrap gap-2', to && 'hidden')}>
           <Button variant="outline" size="sm" onClick={nearMe} className="shadow-card">
             <LocateFixed className="size-4" aria-hidden /> Near me
           </Button>
@@ -200,6 +235,7 @@ export default function MapPage() {
         <ul
           className="absolute bottom-6 left-3 space-y-1 rounded-xl bg-surface/95 p-3 text-xs shadow-card"
           aria-label="Legend"
+          hidden={!!to}
         >
           {[80, 45, 10].map((p) => (
             <li key={p} className="flex items-center gap-2">
@@ -237,61 +273,78 @@ export default function MapPage() {
         )}
       </section>
 
-      <aside
-        className="relative z-10 -mt-5 space-y-4 overflow-y-auto rounded-t-3xl border-line bg-cream p-4 shadow-[0_-8px_24px_-12px_rgb(43_26_14/0.25)] lg:mt-0 lg:rounded-none lg:border-l lg:shadow-none"
-        aria-label="Buildings and rooms"
-      >
-        <div aria-hidden className="mx-auto -mt-1 h-1.5 w-10 rounded-full bg-line lg:hidden" />
-        {showList && (
-          <nav aria-label="Buildings list">
-            <h2 className="mb-2 text-sm font-semibold">Buildings{me ? ' · nearest first' : ''}</h2>
-            <ul className="space-y-1">
-              {list.map((b) => (
-                <li key={b.buildingId}>
-                  <button
-                    type="button"
-                    onClick={() => select(b)}
-                    aria-pressed={selected === b.buildingId}
-                    className="flex w-full items-center justify-between rounded-xl bg-surface px-3 py-2 text-left text-sm shadow-card"
-                  >
-                    <span className="min-w-0 truncate">{b.name}</span>
-                    <span className={cn('shrink-0 font-semibold tabular', tier(b.freePct).ink)}>
-                      {b.freePct}% free
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-        {!current ? (
-          buildings.isLoading ? (
-            <Skeleton className="h-40" />
-          ) : (
-            <EmptyState
-              icon={MapPin}
-              title="Pick a building"
-              body="Tap a marker (or use the Buildings list) to see its rooms and live status."
-            />
-          )
-        ) : (
-          <div>
-            <h2 className="text-xl font-bold">{current.name}</h2>
-            <p className="text-sm text-muted tabular">
-              {current.freePct}% of {current.roomCount} rooms free now
-            </p>
-            {rooms.isLoading ? (
-              <Skeleton className="mt-3 h-40" />
-            ) : (
-              <ul className="mt-3 grid gap-3">
-                {rooms.data?.rooms.map((r) => (
-                  <RoomCard key={r.roomId} room={r} />
+      {to ? (
+        <BottomSheet label="Directions">
+          <DirectionsPanel
+            key={to}
+            roomId={to}
+            onRoute={setRoute}
+            onClose={() => {
+              const next = new URLSearchParams(sp);
+              next.delete('to');
+              setSp(next, { replace: true });
+            }}
+          />
+        </BottomSheet>
+      ) : (
+        <aside
+          className="relative z-10 -mt-5 space-y-4 overflow-y-auto rounded-t-3xl border-line bg-cream p-4 shadow-[0_-8px_24px_-12px_rgb(43_26_14/0.25)] lg:mt-0 lg:rounded-none lg:border-l lg:shadow-none"
+          aria-label="Buildings and rooms"
+        >
+          <div aria-hidden className="mx-auto -mt-1 h-1.5 w-10 rounded-full bg-line lg:hidden" />
+          {showList && (
+            <nav aria-label="Buildings list">
+              <h2 className="mb-2 text-sm font-semibold">
+                Buildings{me ? ' · nearest first' : ''}
+              </h2>
+              <ul className="space-y-1">
+                {list.map((b) => (
+                  <li key={b.buildingId}>
+                    <button
+                      type="button"
+                      onClick={() => select(b)}
+                      aria-pressed={selected === b.buildingId}
+                      className="flex w-full items-center justify-between rounded-xl bg-surface px-3 py-2 text-left text-sm shadow-card"
+                    >
+                      <span className="min-w-0 truncate">{b.name}</span>
+                      <span className={cn('shrink-0 font-semibold tabular', tier(b.freePct).ink)}>
+                        {b.freePct}% free
+                      </span>
+                    </button>
+                  </li>
                 ))}
               </ul>
-            )}
-          </div>
-        )}
-      </aside>
+            </nav>
+          )}
+          {!current ? (
+            buildings.isLoading ? (
+              <Skeleton className="h-40" />
+            ) : (
+              <EmptyState
+                icon={MapPin}
+                title="Pick a building"
+                body="Tap a marker (or use the Buildings list) to see its rooms and live status."
+              />
+            )
+          ) : (
+            <div>
+              <h2 className="text-xl font-bold">{current.name}</h2>
+              <p className="text-sm text-muted tabular">
+                {current.freePct}% of {current.roomCount} rooms free now
+              </p>
+              {rooms.isLoading ? (
+                <Skeleton className="mt-3 h-40" />
+              ) : (
+                <ul className="mt-3 grid gap-3">
+                  {rooms.data?.rooms.map((r) => (
+                    <RoomCard key={r.roomId} room={r} />
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </aside>
+      )}
     </div>
   );
 }

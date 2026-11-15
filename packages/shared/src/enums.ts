@@ -36,6 +36,8 @@ export const ReservationEventTypeSchema = z.enum([
   'RELEASED',
   'CANCELLED',
   'CONFLICTED',
+  'ATTENDEE_JOINED',
+  'ATTENDEE_LEFT',
 ]);
 export type ReservationEventType = z.infer<typeof ReservationEventTypeSchema>;
 

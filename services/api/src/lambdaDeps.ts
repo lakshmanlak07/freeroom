@@ -1,3 +1,4 @@
+import { awsRouter } from './directions/router';
 /** Production wiring from environment (set by CDK in P4). */
 import type { AppDeps, Surface } from './app';
 import { cognitoVerifier, secretsManagerPepper } from './auth';
@@ -39,5 +40,11 @@ export async function lambdaDeps(surface: Surface): Promise<AppDeps> {
     devAuth: process.env.NODE_ENV === 'development',
     mock25live: demo,
     demo,
+    // Feature flags (CDK sets these from config: on in dev, off in prod until approved).
+    features: {
+      directions: process.env.FEATURE_DIRECTIONS === 'true',
+      invites: process.env.FEATURE_INVITES === 'true',
+    },
+    ...(process.env.FEATURE_DIRECTIONS === 'true' && { router: awsRouter() }),
   };
 }

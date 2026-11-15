@@ -10,10 +10,20 @@ export interface AppConfig {
   demoMode: boolean;
   /** Prod only: the public demo site for the landing page's "Try the live demo". */
   demoUrl?: string;
+  /** Feature flags: on in dev, off in prod until approved. */
+  features?: { directions?: boolean; invites?: boolean };
 }
 
 /** Local: same-origin /api, proxied by Vite to the local API (deployed: CloudFront /api/*). */
-const LOCAL: AppConfig = { apiUrl: '/api', region: 'us-east-1', demoMode: true };
+const LOCAL: AppConfig = {
+  apiUrl: '/api',
+  region: 'us-east-1',
+  demoMode: true,
+  features: { directions: true, invites: true },
+};
+
+/** Feature flag helper (missing config = off). */
+export const useFeature = (name: 'directions' | 'invites') => !!useConfig().features?.[name];
 
 export async function loadConfig(): Promise<AppConfig> {
   try {

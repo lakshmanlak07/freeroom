@@ -24,6 +24,8 @@ export const ERROR_STATUS = {
   NOT_FOUND: 404,
   INVALID_TRANSITION: 409,
   RATE_LIMITED: 429,
+  ROOM_FULL: 409, // invite join would exceed room capacity
+  ROUTING_UNAVAILABLE: 503, // walking directions provider failed
   INTERNAL: 500,
 } as const;
 

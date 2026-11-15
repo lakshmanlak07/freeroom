@@ -11,7 +11,10 @@ import { AppError } from './errors';
 import { createLogger, type Logger } from './logger';
 import { metric } from './metrics';
 import type { NlBedrock } from './nlsearch';
+import type { RouteCache, Router } from './directions/router';
 import { claimRoutes, contactRevealRoutes } from './routes/claims';
+import { directionsRoutes } from './routes/directions';
+import { inviteRoutes } from './routes/invites';
 import { demoRoutes, mock25liveRoutes } from './routes/dev';
 import { notificationRoutes } from './routes/notifications';
 import { reservationRoutes } from './routes/reservations';
@@ -52,6 +55,11 @@ export interface AppDeps {
   demo?: boolean;
   limits?: Readonly<Record<Role, RoleLimits>>;
   refreshTimeoutMs?: number;
+  /** Feature flags (config.json `features`): on in dev, off in prod until approved. */
+  features?: { directions?: boolean; invites?: boolean };
+  /** Walking directions provider (Amazon Location Routes v2 when deployed). */
+  router?: Router;
+  routeCache?: RouteCache;
 }
 
 export interface Ctx extends AppDeps {
@@ -81,7 +89,10 @@ const PUBLIC = (path: string) => path === '/health' || path.startsWith('/mock25l
 /** Room browsing works signed-out (no JWT authorizer on these routes); a token, if sent, is verified. */
 const PUBLIC_READ = (method: string, path: string) =>
   method === 'GET' &&
-  (path === '/buildings' || path === '/rooms' || /^\/rooms\/[^/]+(\/schedule)?$/.test(path));
+  (path === '/buildings' ||
+    path === '/rooms' ||
+    /^\/rooms\/[^/]+(\/schedule)?$/.test(path) ||
+    /^\/invites\/[^/]+(\/calendar\.ics)?$/.test(path)); // invite previews work signed out
 const ALLOWED_UNREGISTERED = (method: string, path: string) =>
   (method === 'POST' && path === '/register') || (method === 'GET' && path === '/me');
 
@@ -166,6 +177,8 @@ export function createApp(deps: AppDeps) {
     app.route('/', reservationRoutes(ctx));
     app.route('/', claimRoutes(ctx));
     app.route('/', notificationRoutes(ctx));
+    if (ctx.features?.directions) app.route('/', directionsRoutes(ctx));
+    if (ctx.features?.invites) app.route('/', inviteRoutes(ctx));
     if (ctx.demo) app.route('/', demoRoutes(ctx));
   }
   if (surface !== 'main') {

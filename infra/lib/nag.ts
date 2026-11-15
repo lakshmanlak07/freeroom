@@ -118,6 +118,14 @@ export function suppressNag(stack: Stack) {
       'Intentionally public, read-only, PII-free room data (PRD F1/F3); throttled by the stage (and the WAF rate rule in prod).',
     );
   }
+  // Group invites (features.invites): the invite preview + calendar file work signed out by design.
+  for (const p of ['invites--{token}', 'invites--{token}--calendar.ics']) {
+    ack(
+      `Api/Http/GET--${p}`,
+      'AwsSolutions-APIG4',
+      'Intentionally public: knowing a 128-bit random token is the capability. Returns aliases, room and time only (never ids or contact, BR-5); unknown/revoked/expired tokens are an identical 404; throttled by the stage and the WAF rate rule in prod.',
+    );
+  }
 
   // ---- Edge / web
   ack(

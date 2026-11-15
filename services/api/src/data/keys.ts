@@ -22,6 +22,16 @@ export const keys = {
   /** Per-user, per-minute natural-language search counter (TTL'd). */
   nlRate: (id: string, minuteIso: string) => ({ PK: `USER#${id}`, SK: `NLRATE#${minuteIso}` }),
   idempotency: (userId: string, key: string) => ({ PK: `IDEMP#${userId}#${key}`, SK: 'IDEMP' }),
+  /** Generic per-user rate-limit counter (TTL'd): bucket = 'route' | 'invite', window = minute/hour. */
+  rate: (id: string, bucket: string, window: string) => ({
+    PK: `USER#${id}`,
+    SK: `RATE#${bucket}#${window}`,
+  }),
+  /** Group invites: only the SHA-256 of the token is ever stored. */
+  invite: (tokenHash: string) => ({ PK: `INVITE#${tokenHash}`, SK: 'INVITE' }),
+  /** The one active invite link of a reservation (creating a new one revokes the old). */
+  inviteLink: (resId: string) => ({ PK: `RES#${resId}`, SK: 'INVITELINK' }),
+  attendee: (resId: string, userId: string) => ({ PK: `RES#${resId}`, SK: `ATTENDEE#${userId}` }),
   syncRun: (source: string, atIso: string) => ({ PK: `SYNC#${source}`, SK: `RUN#${atIso}` }),
   syncRunPk: (source: string) => `SYNC#${source}`,
   injectedClass: (eventId: string) => ({ PK: 'MOCK25LIVE', SK: `INJECT#${eventId}` }),
@@ -67,6 +77,9 @@ export const keys = {
     userPk: (id: string) => `USER#${id}`,
     resSk: (startIso: string) => `RES#${startIso}`,
     claimSk: (createdIso: string) => `CLAIM#${createdIso}`,
+    /** Bookings I joined through an invite (kept apart from my own RES# items). */
+    attendSk: (startIso: string) => `ATT#${startIso}`,
+    attendPrefix: 'ATT#',
   },
   gsi3: {
     incomingPk: (ownerId: string) => `USER#${ownerId}#INCOMING`,
@@ -90,5 +103,6 @@ export const keys = {
     claim: 'CLAIM#',
     notif: 'NOTIF#',
     idemp: 'IDEMP#',
+    attendee: 'ATTENDEE#',
   },
 } as const;
